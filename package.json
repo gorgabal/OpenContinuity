@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "react": "^19.0.0",
+    "rxdb": "^16.6.1",
+    "rxjs": "^7.8.1"
+  },
+  "scripts": {
+    "serve": "node server.js"
+  }
+}
