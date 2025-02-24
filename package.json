@@ -11,7 +11,10 @@
   },
   "dependencies": {
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "rxdb": "^16.6.1",
+    "rxdb-hooks": "^5.0.2",
+    "rxjs": "^7.8.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
@@ -23,6 +26,7 @@
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.18",
     "globals": "^15.14.0",
+    "prettier": "3.5.1",
     "vite": "^6.1.0"
   }
 }
