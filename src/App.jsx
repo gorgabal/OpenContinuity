@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
@@ -51,21 +51,33 @@ async function databaseSetup() {
 
 }
 
-function incrementCount() {
-  myDocument.incrementalUpdate({
-    $inc: {
-      count: 1
-    }
-  })
-
-  console.log(myDocument.getLatest().count);
-}
-
 function App() {
+  const [count, setCount] = useState(0);
+  
+  // Run database setup once on component mount
+  useEffect(() => {
+    databaseSetup()
+      .then(() => {
+        // Initialize state with database value
+        setCount(myDocument.getLatest().count);
+        
+        // Subscribe to changes
+        const subscription = myDocument.$.subscribe(newDoc => {
+          setCount(newDoc.count);
+        });
+        
+        return () => subscription.unsubscribe();
+      })
+      .catch(console.error);
+  }, []);
 
-  databaseSetup().catch(console.error);
-
-  const [myDocument.count, setCount] = useState(0)
+  const handleIncrement = () => {
+    myDocument.incrementalUpdate({
+      $inc: {
+        count: 1
+      }
+    }).catch(console.error);
+  };
 
   return (
     <>
@@ -79,7 +91,7 @@ function App() {
       </div>
       <h1>Vite + React</h1>
       <div className="card">
-        <button onClick={incrementCount}>
+        <button onClick={handleIncrement}>
           count is {count}
         </button>
         <p>
