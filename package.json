@@ -10,17 +10,21 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tailwindcss/vite": "^4.0.12",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "rxdb": "^16.6.1",
-    "rxdb-hooks": "^5.0.2",
-    "rxjs": "^7.8.1"
+    "react-router-dom": "^7.3.0",
+    "rxdb": "^16.8.0",
+    "rxdb-hooks": "^5.0.0",
+    "rxjs": "^7.8.1",
+    "tailwindcss": "^4.0.12"
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^4.3.4",
+    "daisyui": "^5.0.0",
     "eslint": "^9.19.0",
     "eslint-plugin-react": "^7.37.4",
     "eslint-plugin-react-hooks": "^5.0.0",
