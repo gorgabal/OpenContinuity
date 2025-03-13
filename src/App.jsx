@@ -14,6 +14,7 @@ import CostumeDetailPage from './pages/CostumeDetailPage'
 import SceneOverviewPage from './pages/SceneOverviewPage'
 import SceneDetailPage from './pages/SceneDetailPage'
 import ShootingDayPage from './pages/ShootingDayPage'
+import { Button } from 'flowbite-react';
 
 let myDocument;
 
@@ -87,20 +88,16 @@ function App() {
 
   return (
     <div class="layout">
-      <div class="layout__sidebar">
-        <QuickActionSidebar />
-      </div>
       <div className="layout__main">
         <div className="card">
-          <button onClick={handleIncrement}>
+          <Button onClick={handleIncrement}>
             count is {count}
-          </button>
+          </Button>
           <p>
             Edit <code>src/App.jsx</code> and save to test HMR
           </p>
         </div>
         <div>
-        <CostumeDetailPage />
         </div>
       </div>
     </div>

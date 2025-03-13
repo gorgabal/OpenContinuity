@@ -4,7 +4,7 @@ function CostumeDetailPage() {
   return (
     <div class="">
       <h1>Costume Detail Page</h1>
-      <button className="btn btn-primary">Primary</button>
+      <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.</p>
     </div>
   )
 }
