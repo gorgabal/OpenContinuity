@@ -4,12 +4,12 @@ import { BrowserRouter } from "react-router-dom";
 import './index.css'
 import App from './App.jsx'
 import { Button } from "flowbite-react";
-import QuickActionSidebar from './components/QuickActionSidebar.jsx'
+import MainNav from './components/QuickActionSidebar.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
-      <QuickActionSidebar />
+      <MainNav />
       <App />
     </BrowserRouter>
   </StrictMode>,

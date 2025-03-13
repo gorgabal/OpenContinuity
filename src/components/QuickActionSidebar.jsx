@@ -1,6 +1,6 @@
 import { Navbar } from "flowbite-react"
 
-function QuickActionSidebar() {
+function MainNav() {
   return (
     <div>
       <Navbar>
@@ -15,4 +15,4 @@ function QuickActionSidebar() {
   )
 }
 
-export default QuickActionSidebar 
+export default MainNav 

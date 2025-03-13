@@ -9,7 +9,7 @@ import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
 import { wrappedValidateAjvStorage } from 'rxdb/plugins/validate-ajv';
 import { RxDBUpdatePlugin } from 'rxdb/plugins/update';
 
-import QuickActionSidebar from './components/QuickActionSidebar'
+import MainNav from './components/QuickActionSidebar'
 import CostumeDetailPage from './pages/CostumeDetailPage'
 import SceneOverviewPage from './pages/SceneOverviewPage'
 import SceneDetailPage from './pages/SceneDetailPage'
