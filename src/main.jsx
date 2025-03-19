@@ -1,16 +1,25 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import './index.css'
 import App from './App.jsx'
 import { Button } from "flowbite-react";
 import MainNav from './components/QuickActionSidebar.jsx'
+import CostumeDetailPage from './pages/CostumeDetailPage.jsx';
+import SceneOverviewPage from './pages/SceneOverviewPage.jsx';
+import ShootingDayPage from './pages/ShootingDayPage.jsx';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
       <MainNav />
-      <App />
+      <Routes>
+        <Route path="/" element={<App />} />
+        <Route path="costumes" element={<CostumeDetailPage />} />
+        <Route path="scene-overview" element={<SceneOverviewPage />} />
+        <Route path="shootingday" element={<ShootingDayPage />} />
+      </Routes>
     </BrowserRouter>
+
   </StrictMode>,
 )
