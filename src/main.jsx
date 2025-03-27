@@ -8,6 +8,7 @@ import MainNav from './components/QuickActionSidebar.jsx'
 import CostumeDetailPage from './pages/CostumeDetailPage.jsx';
 import SceneOverviewPage from './pages/SceneOverviewPage.jsx';
 import ShootingDayPage from './pages/ShootingDayPage.jsx';
+import CostumeOverviewPage from './pages/CostumeOverviewPage.jsx';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -15,7 +16,8 @@ createRoot(document.getElementById('root')).render(
       <MainNav />
       <Routes>
         <Route path="/" element={<App />} />
-        <Route path="costumes" element={<CostumeDetailPage />} />
+        <Route path="costumes" element={<CostumeOverviewPage />} />
+        <Route path="costumes/:id" element={<CostumeDetailPage />} />
         <Route path="scene-overview" element={<SceneOverviewPage />} />
         <Route path="shootingday" element={<ShootingDayPage />} />
       </Routes>

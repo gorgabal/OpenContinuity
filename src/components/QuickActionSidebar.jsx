@@ -3,7 +3,8 @@ import { Navbar } from "flowbite-react"
 function MainNav() {
   return (
     <div>
-      <Navbar>
+      <Navbar fluid>
+      <Navbar.Toggle />
         <Navbar.Collapse>
           <Navbar.Link href="/">Home</Navbar.Link>
           <Navbar.Link href="/costumes">Costumes</Navbar.Link>
