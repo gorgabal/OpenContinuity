@@ -1,4 +1,5 @@
 import { Card } from 'flowbite-react'
+import { Link } from 'react-router-dom'
 
 function SceneOverviewPage() {
   const scenes = [
@@ -10,7 +11,6 @@ function SceneOverviewPage() {
         "Locatie: Café De Kroeg",
         "Personages: John, Maria",
         "Tijd: Avond",
-        "Kostuum: Casual kleding"
       ]
     },
     {
@@ -112,16 +112,20 @@ function SceneOverviewPage() {
             const dayScenes = scenes.filter(scene => scene.shootingDayId === day.id);
             
             return (
-              <Card key={day.id}>
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-bold">{new Date(day.date).toLocaleDateString('nl-NL')}</h3>
-                  <span className="text-sm text-gray-500">{day.status}</span>
-                </div>
-                <p className="text-gray-700">Locatie: {day.location}</p>
-                <p className="text-gray-700">
-                  Scenes: {dayScenes.map(scene => scene.id).join(', ')}
-                </p>
-              </Card>
+              <div>
+              <Link key={day.id} to={`/shootingday/${day.id}`}>
+                <Card className="hover:bg-gray-50 transition-colors">
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="font-bold">{new Date(day.date).toLocaleDateString('nl-NL')}</h3>
+                    <span className="text-sm text-gray-500">{day.status}</span>
+                  </div>
+                  <p className="text-gray-700">Locatie: {day.location}</p>
+                  <p className="text-gray-700">
+                    Scenes: {dayScenes.map(scene => scene.id).join(', ')}
+                  </p>
+                </Card>
+              </Link>
+              </div>
             );
           })}
         </div>
