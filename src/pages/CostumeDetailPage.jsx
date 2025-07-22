@@ -23,6 +23,7 @@ function CostumeDetailPage() {
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Left column - Photos */}
+        {/* TODO: zorg dat er meerdere foto's kunnen worden toegevoegd */}
         <div className="md:col-span-2 space-y-4">
           <Card>
             <img 
@@ -31,10 +32,6 @@ function CostumeDetailPage() {
               className="w-full h-auto"
             />
             <p className="text-gray-500">FOTO's. (misschien kan de layout hiervan anders?)</p>
-          </Card>
-          
-          <Card className="h-64">
-            {/* Additional photos or content area */}
           </Card>
         </div>
 
