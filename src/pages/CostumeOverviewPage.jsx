@@ -1,6 +1,12 @@
+import { useState, useEffect } from 'react';
 import { Card, Button, Spinner } from 'flowbite-react';
 import { Link } from 'react-router-dom';
-import { useDatabase } from '../contexts/DatabaseContext.jsx';
+import {
+  initDatabase,
+  getCostumes,
+  getCostumes$,
+  addCostume,
+} from '../services/database.js';
 
 /*
 Should contain the following:
@@ -10,17 +16,59 @@ Should contain the following:
 */
 
 function CostumeOverviewPage() {
-  const { costumes, isLoading, error, createCostume } = useDatabase();
+  const [costumes, setCostumes] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let subscription;
+
+    const setup = async () => {
+      try {
+        setIsLoading(true);
+
+        // Initialize database
+        await initDatabase();
+
+        // Get initial costumes
+        const initialCostumes = await getCostumes();
+        setCostumes(initialCostumes);
+
+        // Subscribe to costume changes for reactive updates
+        const costumes$ = await getCostumes$();
+        subscription = costumes$.subscribe(updatedCostumes => {
+          setCostumes(updatedCostumes);
+        });
+
+        setError(null);
+      } catch (err) {
+        console.error('Failed to setup costumes:', err);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    setup();
+
+    // Cleanup subscription on unmount
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
+  }, []);
 
   const handleAddCostume = async () => {
     try {
-      await createCostume({
+      await addCostume({
         name: 'New Costume',
         character: '',
         scene: '',
       });
     } catch (err) {
       console.error('Failed to add costume:', err);
+      setError(err.message);
     }
   };
 

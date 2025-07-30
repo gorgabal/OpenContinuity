@@ -9,21 +9,18 @@ import CostumeDetailPage from './pages/CostumeDetailPage.jsx';
 import SceneOverviewPage from './pages/SceneOverviewPage.jsx';
 import ShootingDayDetailPage from './pages/ShootingDayDetailPage.jsx';
 import CostumeOverviewPage from './pages/CostumeOverviewPage.jsx';
-import { DatabaseProvider } from './contexts/DatabaseContext.jsx';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <DatabaseProvider>
-      <BrowserRouter>
-        <MainNav />
-        <Routes>
-          <Route path="/" element={<App />} />
-          <Route path="costumes" element={<CostumeOverviewPage />} />
-          <Route path="costumes/:id" element={<CostumeDetailPage />} />
-          <Route path="scene-overview" element={<SceneOverviewPage />} />
-          <Route path="shootingday" element={<ShootingDayDetailPage />} />
-        </Routes>
-      </BrowserRouter>
-    </DatabaseProvider>
+    <BrowserRouter>
+      <MainNav />
+      <Routes>
+        <Route path="/" element={<App />} />
+        <Route path="costumes" element={<CostumeOverviewPage />} />
+        <Route path="costumes/:id" element={<CostumeDetailPage />} />
+        <Route path="scene-overview" element={<SceneOverviewPage />} />
+        <Route path="shootingday" element={<ShootingDayDetailPage />} />
+      </Routes>
+    </BrowserRouter>
   </StrictMode>,
 );
