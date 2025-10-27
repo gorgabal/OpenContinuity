@@ -13,6 +13,8 @@ function CostumeDetailPage() {
   const [costume, setCostume] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleValue, setTitleValue] = useState('');
 
   useEffect(() => {
     if (!id) return;
@@ -55,6 +57,23 @@ function CostumeDetailPage() {
     };
   }, [id]);
 
+  // Sync titleValue with costume.name when costume changes
+  useEffect(() => {
+    if (costume?.name) {
+      setTitleValue(costume.name);
+    }
+  }, [costume?.name]);
+
+  const handleTitleSave = async () => {
+    try {
+      await updateCostume(id, { name: titleValue });
+      setIsEditingTitle(false);
+    } catch (err) {
+      console.error('Failed to update title:', err);
+      setError(err.message);
+    }
+  };
+
   const handleNotesChange = async event => {
     const newNotes = event.target.value;
     try {
@@ -96,9 +115,33 @@ function CostumeDetailPage() {
 
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">
-        {costume.name || 'Untitled Costume'}
-      </h1>
+      {isEditingTitle ? (
+        <div className="flex items-center gap-2 mb-4">
+          <input
+            type="text"
+            value={titleValue}
+            onChange={(e) => setTitleValue(e.target.value)}
+            onBlur={handleTitleSave}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleTitleSave();
+              if (e.key === 'Escape') {
+                setTitleValue(costume.name || '');
+                setIsEditingTitle(false);
+              }
+            }}
+            className="text-2xl font-bold bg-transparent border-b-2 border-blue-500 focus:outline-none flex-1"
+            autoFocus
+          />
+        </div>
+      ) : (
+        <h1
+          className="text-2xl font-bold mb-4 cursor-pointer hover:text-blue-600 transition-colors"
+          onClick={() => setIsEditingTitle(true)}
+          title="Click to edit"
+        >
+          {costume.name || 'Untitled Costume'}
+        </h1>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Left column - Photos */}

@@ -3,6 +3,7 @@ import { RxDBDevModePlugin } from 'rxdb/plugins/dev-mode';
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
 import { wrappedValidateAjvStorage } from 'rxdb/plugins/validate-ajv';
 import { RxDBUpdatePlugin } from 'rxdb/plugins/update';
+import { RxDBAttachmentsPlugin } from 'rxdb/plugins/attachments';
 
 let database = null;
 
@@ -55,6 +56,7 @@ export async function initDatabase() {
   // Add plugins
   addRxPlugin(RxDBDevModePlugin);
   addRxPlugin(RxDBUpdatePlugin);
+  addRxPlugin(RxDBAttachmentsPlugin);
 
   // Create database
   database = await createRxDatabase({
@@ -88,7 +90,7 @@ export async function addCostume(costumeData = {}) {
   const now = new Date().toISOString();
 
   const costume = {
-    id: `costume_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, //fixme: this is a weird appreach to randomness.
+    id: crypto.randomUUID(),
     name: costumeData.name || 'New Costume',
     character: costumeData.character || '',
     scene: costumeData.scene || '',
