@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Card, List, Textarea, Spinner } from 'flowbite-react';
+import { Card, List, Textarea, Spinner, Button } from 'flowbite-react';
 import {
   initDatabase,
   getCostumeById,
   getCostumeById$,
   updateCostume,
+  addPhotoToCostume,
+  getPhotoUrl,
+  removePhotoFromCostume,
 } from '../services/database.js';
 
 function CostumeDetailPage() {
@@ -15,6 +18,9 @@ function CostumeDetailPage() {
   const [error, setError] = useState(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState('');
+  const [photoUrls, setPhotoUrls] = useState([]);
+  const [isAddingPhoto, setIsAddingPhoto] = useState(false);
+  const [cameraInputRef, setCameraInputRef] = useState(null);
 
   useEffect(() => {
     if (!id) return;
@@ -73,6 +79,64 @@ function CostumeDetailPage() {
       setError(err.message);
     }
   };
+
+  const handleTakePhoto = () => {
+    if (cameraInputRef) {
+      setIsAddingPhoto(true);
+      cameraInputRef.click();
+    }
+  };
+
+  const handlePhotoCapture = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      try {
+        await addPhotoToCostume(id, file);
+        // Photo will be updated via the reactive subscription
+      } catch (err) {
+        console.error('Failed to add photo:', err);
+        setError(err.message);
+      }
+    }
+    setIsAddingPhoto(false);
+    // Clear the input so the same photo can be selected again
+    e.target.value = '';
+  };
+
+  const handleRemovePhoto = async (photoId) => {
+    try {
+      await removePhotoFromCostume(id, photoId);
+      // Photo will be removed via the reactive subscription
+    } catch (err) {
+      console.error('Failed to remove photo:', err);
+      setError(err.message);
+    }
+  };
+
+  // Load photo URLs when costume photos change
+  useEffect(() => {
+    const loadPhotoUrls = async () => {
+      if (!costume?.photos || costume.photos.length === 0) {
+        setPhotoUrls([]);
+        return;
+      }
+
+      try {
+        const urls = await Promise.all(
+          costume.photos.map(async (photo) => {
+            const url = await getPhotoUrl(id, photo.id);
+            return { id: photo.id, url, filename: photo.filename };
+          })
+        );
+        setPhotoUrls(urls);
+      } catch (err) {
+        console.error('Failed to load photo URLs:', err);
+        setError(err.message);
+      }
+    };
+
+    loadPhotoUrls();
+  }, [costume?.photos, id]);
 
   const handleNotesChange = async event => {
     const newNotes = event.target.value;
@@ -145,17 +209,53 @@ function CostumeDetailPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Left column - Photos */}
-        {/* TODO: zorg dat er meerdere foto's kunnen worden toegevoegd */}
         <div className="md:col-span-2 space-y-4">
           <Card>
-            <img
-              src={costume.image}
-              alt={costume.name}
-              className="w-full h-auto"
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Photos</h2>
+              <Button 
+                color="blue" 
+                onClick={handleTakePhoto}
+                disabled={isAddingPhoto}
+              >
+                {isAddingPhoto ? 'Adding...' : 'Take Photo'}
+              </Button>
+            </div>
+            
+            {photoUrls.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>No photos yet. Take your first photo!</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                {photoUrls.map((photo) => (
+                  <div key={photo.id} className="relative group">
+                    <img
+                      src={photo.url}
+                      alt={photo.filename}
+                      className="w-full h-48 object-cover rounded-lg"
+                    />
+                    <button
+                      onClick={() => handleRemovePhoto(photo.id)}
+                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Remove photo"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* Hidden camera input for instant capture */}
+            <input
+              ref={(ref) => setCameraInputRef(ref)}
+              type="file"
+              accept="image/*"
+              capture="camera"
+              style={{ display: 'none' }}
+              onChange={handlePhotoCapture}
             />
-            <p className="text-gray-500">
-              FOTO&apos;s. (misschien kan de layout hiervan anders?)
-            </p>
           </Card>
         </div>
 

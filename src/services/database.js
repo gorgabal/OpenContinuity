@@ -7,6 +7,19 @@ import { RxDBAttachmentsPlugin } from 'rxdb/plugins/attachments';
 
 let database = null;
 
+// UUID fallback for non-secure contexts
+function generateUUID() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback UUID generation for non-secure contexts
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 const costumeSchema = {
   version: 0,
   primaryKey: 'id',
@@ -31,6 +44,20 @@ const costumeSchema = {
     image: {
       type: 'string',
       default: 'https://placehold.co/400x300',
+    },
+    photos: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          filename: { type: 'string' },
+          data: { type: 'string' },
+          createdAt: { type: 'string', format: 'date-time' },
+        },
+        required: ['id', 'filename', 'data', 'createdAt']
+      },
+      default: []
     },
     notes: {
       type: 'string',
@@ -90,7 +117,7 @@ export async function addCostume(costumeData = {}) {
   const now = new Date().toISOString();
 
   const costume = {
-    id: crypto.randomUUID(),
+    id: generateUUID(),
     name: costumeData.name || 'New Costume',
     character: costumeData.character || '',
     scene: costumeData.scene || '',
@@ -150,4 +177,78 @@ export async function getCostumes$() {
 export async function getCostumeById$(id) {
   const db = await getDatabase();
   return db.costumes.findOne(id).$;
+}
+
+// Photo-related functions
+export async function addPhotoToCostume(costumeId, photoFile) {
+  const db = await getDatabase();
+  const costume = await db.costumes.findOne(costumeId).exec();
+  
+  if (!costume) {
+    throw new Error(`Costume with id ${costumeId} not found`);
+  }
+
+  // Convert file to base64
+  const base64Data = await new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(photoFile);
+  });
+
+  // Create photo object
+  const photoId = generateUUID();
+  const filename = `photo_${Date.now()}.jpg`;
+  const newPhoto = {
+    id: photoId,
+    filename: filename,
+    data: base64Data,
+    createdAt: new Date().toISOString()
+  };
+
+  // Update the photos array
+  const currentPhotos = costume.photos || [];
+  await costume.update({
+    $set: {
+      photos: [...currentPhotos, newPhoto],
+      updatedAt: new Date().toISOString()
+    }
+  });
+
+  return newPhoto;
+}
+
+export async function getPhotoUrl(costumeId, photoId) {
+  const db = await getDatabase();
+  const costume = await db.costumes.findOne(costumeId).exec();
+  
+  if (!costume) {
+    throw new Error(`Costume with id ${costumeId} not found`);
+  }
+
+  const photo = (costume.photos || []).find(p => p.id === photoId);
+  if (!photo) {
+    throw new Error(`Photo with id ${photoId} not found`);
+  }
+
+  // Return the base64 data URL directly
+  return photo.data;
+}
+
+export async function removePhotoFromCostume(costumeId, photoId) {
+  const db = await getDatabase();
+  const costume = await db.costumes.findOne(costumeId).exec();
+  
+  if (!costume) {
+    throw new Error(`Costume with id ${costumeId} not found`);
+  }
+
+  // Remove from photos array
+  const updatedPhotos = (costume.photos || []).filter(photo => photo.id !== photoId);
+  
+  await costume.update({
+    $set: {
+      photos: updatedPhotos,
+      updatedAt: new Date().toISOString()
+    }
+  });
 }
