@@ -199,7 +199,7 @@ function CostumeDetailPage() {
         </div>
       ) : (
         <h1
-          className="text-2xl font-bold mb-4 cursor-pointer hover:text-blue-600 transition-colors"
+          className="text-left text-2xl font-bold mb-4 cursor-pointer hover:text-blue-600 transition-colors"
           onClick={() => setIsEditingTitle(true)}
           title="Click to edit"
         >
@@ -213,15 +213,15 @@ function CostumeDetailPage() {
           <Card>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold">Photos</h2>
-              <Button 
-                color="blue" 
+              <Button
+                color="blue"
                 onClick={handleTakePhoto}
                 disabled={isAddingPhoto}
               >
                 {isAddingPhoto ? 'Adding...' : 'Take Photo'}
               </Button>
             </div>
-            
+
             {photoUrls.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <p>No photos yet. Take your first photo!</p>
@@ -246,7 +246,7 @@ function CostumeDetailPage() {
                 ))}
               </div>
             )}
-            
+
             {/* Hidden camera input for instant capture */}
             <input
               ref={(ref) => setCameraInputRef(ref)}
