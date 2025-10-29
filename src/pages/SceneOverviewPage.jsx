@@ -1,9 +1,27 @@
 import { Card, Button } from 'flowbite-react'
 import { Link } from 'react-router-dom'
 import { useScenes } from '../hooks/useScenes'
+import { useShootingDays } from '../hooks/useShootingDays'
 
 function SceneOverviewPage() {
-  const { scenes, shootingDays, loading, error, createScene } = useScenes()
+  const { scenes, loading, error, createScene } = useScenes()
+  const { shootingDays, createShootingDay } = useShootingDays()
+
+  const handleAddShootingDay = async () => {
+    try {
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      const dateString = tomorrow.toISOString().split('T')[0]
+      
+      await createShootingDay({
+        date: dateString,
+        location: '',
+        status: 'Gepland'
+      })
+    } catch (error) {
+      alert('Error creating shooting day: ' + error.message)
+    }
+  }
 
   const handleAddScene = async () => {
     try {
@@ -108,7 +126,10 @@ function SceneOverviewPage() {
 
         {/* Right column - Shooting Days */}
         <div className="space-y-4">
-          <h2 className="text-xl font-bold mb-4">Draaidagen</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">Draaidagen</h2>
+            <Button onClick={handleAddShootingDay}>Add Shooting Day</Button>
+          </div>
 
           {shootingDays.length === 0 ? (
             <Card>

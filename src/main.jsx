@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import './index.css';
-import App from './App.jsx';
+
 // import { Button } from "flowbite-react";
 import MainNav from './assets/components/MainNavigation.jsx';
 import CostumeDetailPage from './pages/CostumeDetailPage.jsx';
@@ -21,7 +21,7 @@ createRoot(document.getElementById('root')).render(
         <Route path="costumes/:id" element={<CostumeDetailPage />} />
         <Route path="scene-overview" element={<SceneOverviewPage />} />
         <Route path="scene/:id" element={<SceneDetailPage />} />
-        <Route path="shootingday" element={<ShootingDayDetailPage />} />
+        <Route path="shootingday/:id" element={<ShootingDayDetailPage />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,
