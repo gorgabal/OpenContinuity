@@ -375,6 +375,22 @@ export async function getShootingDayById(id) {
   return await db.shootingdays.findOne(id).exec();
 }
 
+export async function updateShootingDay(id, updateData) {
+  const db = await getDatabase();
+  const shootingDay = await db.shootingdays.findOne(id).exec();
+
+  if (shootingDay) {
+    return await shootingDay.update({
+      $set: {
+        ...updateData,
+        updatedAt: new Date().toISOString(),
+      },
+    });
+  }
+
+  throw new Error(`Shooting day with id ${id} not found`);
+}
+
 // Scene functions
 export async function addScene(sceneData = {}) {
   const db = await getDatabase();
@@ -421,6 +437,16 @@ export async function updateScene(id, updateData) {
   }
 
   throw new Error(`Scene with id ${id} not found`);
+}
+
+export async function getScenesByShootingDayId(shootingDayId) {
+  const db = await getDatabase();
+  const scenes = await db.scenes.find({
+    selector: {
+      shootingDayId: shootingDayId
+    }
+  }).exec();
+  return scenes.sort((a, b) => a.sceneNumber - b.sceneNumber);
 }
 
 // Sample data seeding function
