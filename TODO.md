@@ -1,0 +1,5 @@
+- [ ] connect ui to data source
+- [ ] add posibility to add and edit data
+- [ ] add characterDetailPage (must this be different from costumeDetailPage?, should character and costume be independent of each other?, discuss with client)
+         - yes, character and costume are independent of each other, but character page can be quite minimal. 
+- [ ] add quick filter to sceneOverviewPage and shootingDayDetailPage

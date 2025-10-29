@@ -7,6 +7,7 @@ import App from './App.jsx';
 import MainNav from './assets/components/MainNavigation.jsx';
 import CostumeDetailPage from './pages/CostumeDetailPage.jsx';
 import SceneOverviewPage from './pages/SceneOverviewPage.jsx';
+import SceneDetailPage from './pages/SceneDetailPage.jsx';
 import ShootingDayDetailPage from './pages/ShootingDayDetailPage.jsx';
 import CostumeOverviewPage from './pages/CostumeOverviewPage.jsx';
 
@@ -19,6 +20,7 @@ createRoot(document.getElementById('root')).render(
         <Route path="costumes" element={<CostumeOverviewPage />} />
         <Route path="costumes/:id" element={<CostumeDetailPage />} />
         <Route path="scene-overview" element={<SceneOverviewPage />} />
+        <Route path="scene/:id" element={<SceneDetailPage />} />
         <Route path="shootingday" element={<ShootingDayDetailPage />} />
       </Routes>
     </BrowserRouter>
