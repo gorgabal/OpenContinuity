@@ -8,6 +8,7 @@ function MainNav() {
         <Navbar.Collapse>
           <Navbar.Link as={Link} to="/costumes">Costumes</Navbar.Link>
           <Navbar.Link as={Link} to="/scene-overview">Scene Overview</Navbar.Link>
+          <Navbar.Link as={Link} to="/characters">Characters</Navbar.Link>
         </Navbar.Collapse>
       </Navbar>
     </div>

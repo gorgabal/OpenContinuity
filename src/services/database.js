@@ -109,6 +109,42 @@ const shootingDaySchema = {
   required: ['id', 'date', 'createdAt', 'updatedAt'],
 };
 
+const characterSchema = {
+  version: 0,
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: {
+      type: 'string',
+      maxLength: 100,
+    },
+    name: {
+      type: 'string',
+    },
+    description: {
+      type: 'string',
+      default: '',
+    },
+    actor: {
+      type: 'string',
+      default: '',
+    },
+    notes: {
+      type: 'string',
+      default: '',
+    },
+    createdAt: {
+      type: 'string',
+      format: 'date-time',
+    },
+    updatedAt: {
+      type: 'string',
+      format: 'date-time',
+    },
+  },
+  required: ['id', 'name', 'createdAt', 'updatedAt'],
+};
+
 const sceneSchema = {
   version: 0,
   primaryKey: 'id',
@@ -189,6 +225,9 @@ export async function initDatabase() {
       },
       scenes: {
         schema: sceneSchema,
+      },
+      characters: {
+        schema: characterSchema,
       },
     });
 
@@ -347,6 +386,105 @@ export async function removePhotoFromCostume(costumeId, photoId) {
   });
 }
 
+// Character functions
+export async function addCharacter(characterData = {}) {
+  const db = await getDatabase();
+  const now = new Date().toISOString();
+
+  const character = {
+    id: generateUUID(),
+    name: characterData.name || 'New Character',
+    description: characterData.description || '',
+    actor: characterData.actor || '',
+    notes: characterData.notes || '',
+    createdAt: now,
+    updatedAt: now,
+    ...characterData,
+  };
+
+  return await db.characters.insert(character);
+}
+
+export async function getCharacters() {
+  const db = await getDatabase();
+  const characters = await db.characters.find().exec();
+  return characters.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function getCharacterById(id) {
+  const db = await getDatabase();
+  return await db.characters.findOne(id).exec();
+}
+
+export async function updateCharacter(id, updateData) {
+  const db = await getDatabase();
+  const character = await db.characters.findOne(id).exec();
+
+  if (character) {
+    return await character.update({
+      $set: {
+        ...updateData,
+        updatedAt: new Date().toISOString(),
+      },
+    });
+  }
+
+  throw new Error(`Character with id ${id} not found`);
+}
+
+export async function deleteCharacter(id) {
+  const db = await getDatabase();
+  const character = await db.characters.findOne(id).exec();
+
+  if (character) {
+    return await character.remove();
+  }
+
+  throw new Error(`Character with id ${id} not found`);
+}
+
+// Character-Costume relationship functions
+export async function getCostumesByCharacterId(characterId) {
+  const db = await getDatabase();
+  return await db.costumes.find({
+    selector: {
+      character: characterId
+    }
+  }).exec();
+}
+
+export async function assignCostumeToCharacter(costumeId, characterId) {
+  const db = await getDatabase();
+  const costume = await db.costumes.findOne(costumeId).exec();
+
+  if (costume) {
+    return await costume.update({
+      $set: {
+        character: characterId,
+        updatedAt: new Date().toISOString(),
+      },
+    });
+  }
+
+  throw new Error(`Costume with id ${costumeId} not found`);
+}
+
+export async function unassignCostumeFromCharacter(costumeId) {
+  const db = await getDatabase();
+  const costume = await db.costumes.findOne(costumeId).exec();
+
+  if (costume) {
+    return await costume.update({
+      $set: {
+        character: '',
+        updatedAt: new Date().toISOString(),
+      },
+    });
+  }
+
+  throw new Error(`Costume with id ${costumeId} not found`);
+}
+
 // Shooting Day functions
 export async function addShootingDay(shootingDayData = {}) {
   const db = await getDatabase();
@@ -449,83 +587,7 @@ export async function getScenesByShootingDayId(shootingDayId) {
   return scenes.sort((a, b) => a.sceneNumber - b.sceneNumber);
 }
 
-// Sample data seeding function
-export async function seedSampleData() {
-  const db = await getDatabase();
-  
-  // Check if data already exists
-  const existingShootingDays = await db.shootingdays.find().exec();
-  const existingScenes = await db.scenes.find().exec();
-  
-  if (existingShootingDays.length > 0 || existingScenes.length > 0) {
-    console.log('Sample data already exists, skipping seed');
-    return;
-  }
 
-  try {
-    console.log('Seeding sample data...');
-    
-    // Create sample shooting days
-    const shootingDay1 = await addShootingDay({
-      date: '2024-03-20',
-      location: 'Centrum',
-      status: 'Gepland'
-    });
-
-    const shootingDay2 = await addShootingDay({
-      date: '2024-03-21',
-      location: 'Kantoorpand',
-      status: 'In afwachting'
-    });
-
-    const shootingDay3 = await addShootingDay({
-      date: '2024-03-22',
-      location: 'Station',
-      status: 'Bevestigd'
-    });
-
-    // Create sample scenes
-    await addScene({
-      sceneNumber: 1,
-      shootingDayId: shootingDay1.id,
-      location: 'Café De Kroeg',
-      characters: 'John, Maria',
-      time: 'Avond',
-      costume: ''
-    });
-
-    await addScene({
-      sceneNumber: 2,
-      shootingDayId: shootingDay1.id,
-      location: 'Stadspark',
-      characters: 'Maria, Peter',
-      time: 'Middag',
-      costume: ''
-    });
-
-    await addScene({
-      sceneNumber: 3,
-      shootingDayId: shootingDay2.id,
-      location: 'Kantoor',
-      characters: 'John, Boss',
-      time: 'Ochtend',
-      costume: ''
-    });
-
-    await addScene({
-      sceneNumber: 14,
-      shootingDayId: shootingDay3.id,
-      location: 'Treinstation',
-      characters: 'Maria',
-      time: 'Spits',
-      costume: 'Reisoutfit'
-    });
-
-    console.log('Sample data seeded successfully');
-  } catch (error) {
-    console.error('Error seeding sample data:', error);
-  }
-}
 
 // Create a default shooting day if none exist
 export async function ensureDefaultShootingDay() {

@@ -9,11 +9,13 @@ import {
   addPhotoToCostume,
   getPhotoUrl,
   removePhotoFromCostume,
+  getCharacterById,
 } from '../services/database.js';
 
 function CostumeDetailPage() {
   const { id } = useParams();
   const [costume, setCostume] = useState(null);
+  const [character, setCharacter] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -37,6 +39,12 @@ function CostumeDetailPage() {
         // Get initial costume
         const initialCostume = await getCostumeById(id);
         setCostume(initialCostume);
+
+        // Get character if costume has one assigned
+        if (initialCostume && initialCostume.character) {
+          const characterData = await getCharacterById(initialCostume.character);
+          setCharacter(characterData);
+        }
 
         // Subscribe to costume changes for reactive updates
         const costume$ = await getCostumeById$(id);
@@ -278,7 +286,7 @@ function CostumeDetailPage() {
             <List>
               <List.Item>
                 <span className="font-medium">Character:</span>
-                {costume.character || 'Not assigned'}
+                {character ? character.name : 'Not assigned'}
               </List.Item>
               <List.Item>
                 <span className="font-medium">Scene:</span>
