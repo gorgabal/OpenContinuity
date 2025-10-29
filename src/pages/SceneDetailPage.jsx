@@ -6,7 +6,7 @@ import { getSceneById, getShootingDayById, getShootingDays, updateScene } from '
 function SceneDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  
+
   const [scene, setScene] = useState(null)
   const [shootingDay, setShootingDay] = useState(null)
   const [shootingDays, setShootingDays] = useState([])
@@ -14,7 +14,7 @@ function SceneDetailPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [isEditing, setIsEditing] = useState(false)
-  
+
   const [editData, setEditData] = useState({
     sceneNumber: '',
     shootingDayId: '',
@@ -31,15 +31,15 @@ function SceneDetailPage() {
           getSceneById(id),
           getShootingDays()
         ])
-        
+
         if (!sceneData) {
           setError('Scene not found')
           return
         }
-        
+
         setScene(sceneData)
         setShootingDays(shootingDaysData)
-        
+
         // Initialize edit data
         setEditData({
           sceneNumber: sceneData.sceneNumber || '',
@@ -48,13 +48,13 @@ function SceneDetailPage() {
           characters: sceneData.characters || '',
           costume: sceneData.costume || ''
         })
-        
+
         // Load shooting day if scene has one assigned
         if (sceneData.shootingDayId) {
           const shootingDayData = await getShootingDayById(sceneData.shootingDayId)
           setShootingDay(shootingDayData)
         }
-        
+
       } catch (err) {
         console.error('Error loading scene:', err)
         setError(err.message)
@@ -72,18 +72,18 @@ function SceneDetailPage() {
     try {
       setSaving(true)
       setError(null)
-      
+
       const updateData = {
         ...editData,
         sceneNumber: parseInt(editData.sceneNumber) || 1
       }
-      
+
       await updateScene(id, updateData)
-      
+
       // Refresh scene data
       const updatedScene = await getSceneById(id)
       setScene(updatedScene)
-      
+
       // Update shooting day if changed
       if (updatedScene.shootingDayId) {
         const shootingDayData = await getShootingDayById(updatedScene.shootingDayId)
@@ -91,9 +91,9 @@ function SceneDetailPage() {
       } else {
         setShootingDay(null)
       }
-      
+
       setIsEditing(false)
-      
+
     } catch (err) {
       console.error('Error saving scene:', err)
       setError(err.message)
@@ -232,55 +232,56 @@ function SceneDetailPage() {
                 </Select>
               ) : (
                 <p className="mt-1">
-                  {shootingDay 
+                  {shootingDay
                     ? `${new Date(shootingDay.date).toLocaleDateString('nl-NL')} - ${shootingDay.location}`
                     : 'Not assigned'
                   }
                 </p>
               )}
             </div>
-          </div>
 
-          <div>
-            <Label htmlFor="location" value="Location" />
-            {isEditing ? (
-              <TextInput
-                id="location"
-                value={editData.location}
-                onChange={(e) => setEditData({ ...editData, location: e.target.value })}
-                placeholder="e.g. Café De Kroeg, Office, Train Station"
-              />
-            ) : (
-              <p className="mt-1">{scene.location || 'Not specified'}</p>
-            )}
-          </div>
+            <div>
+              <Label htmlFor="location" value="Location" />
+              {isEditing ? (
+                <TextInput
+                  id="location"
+                  value={editData.location}
+                  onChange={(e) => setEditData({ ...editData, location: e.target.value })}
+                  placeholder="e.g. Café De Kroeg, Office, Train Station"
+                />
+              ) : (
+                <p className="mt-1">{scene.location || 'Not specified'}</p>
+              )}
+            </div>
 
-          <div>
-            <Label htmlFor="characters" value="Characters" />
-            {isEditing ? (
-              <TextInput
-                id="characters"
-                value={editData.characters}
-                onChange={(e) => setEditData({ ...editData, characters: e.target.value })}
-                placeholder="e.g. John, Maria, Peter"
-              />
-            ) : (
-              <p className="mt-1">{scene.characters || 'Not specified'}</p>
-            )}
-          </div>
+            <div>
+              <Label htmlFor="characters" value="Characters" />
+              {isEditing ? (
+                <TextInput
+                  id="characters"
+                  value={editData.characters}
+                  onChange={(e) => setEditData({ ...editData, characters: e.target.value })}
+                  placeholder="e.g. John, Maria, Peter"
+                />
+              ) : (
+                <p className="mt-1">{scene.characters || 'Not specified'}</p>
+              )}
+            </div>
 
-          <div>
-            <Label htmlFor="costume" value="Costume/Outfit" />
-            {isEditing ? (
-              <TextInput
-                id="costume"
-                value={editData.costume}
-                onChange={(e) => setEditData({ ...editData, costume: e.target.value })}
-                placeholder="e.g. Travel outfit, Formal wear"
-              />
-            ) : (
-              <p className="mt-1">{scene.costume || 'Not specified'}</p>
-            )}
+            <div>
+              <Label htmlFor="costume" value="Costume/Outfit" />
+              {isEditing ? (
+                <TextInput
+                  id="costume"
+                  value={editData.costume}
+                  onChange={(e) => setEditData({ ...editData, costume: e.target.value })}
+                  placeholder="e.g. Travel outfit, Formal wear"
+                />
+              ) : (
+                <p className="mt-1">{scene.costume || 'Not specified'}</p>
+              )}
+            </div>
+
           </div>
 
           <div className="text-sm text-gray-500 border-t pt-4">
