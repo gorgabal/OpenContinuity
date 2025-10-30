@@ -119,7 +119,9 @@ function CostumeOverviewPage() {
               : null;
 
             // Find the character name by ID
-            const character = characters.find(c => c.id === costume.character);
+            const character = characters && characters.length > 0 
+              ? characters.find(c => c.id === costume.character)
+              : null;
             const characterName = character ? character.name : 'Not assigned';
 
             return (

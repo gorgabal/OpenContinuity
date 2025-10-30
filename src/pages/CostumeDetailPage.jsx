@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { Card, List, Textarea, Spinner, Button } from 'flowbite-react';
+import { useParams, Link } from 'react-router-dom';
+import { Card, List, Textarea, Spinner, Button, Modal, Label, Select, Checkbox } from 'flowbite-react';
 import {
   initDatabase,
   getCostumeById,
@@ -10,12 +10,18 @@ import {
   getPhotoUrl,
   removePhotoFromCostume,
   getCharacterById,
+  getSceneById,
+  getCharacters,
+  getScenes,
 } from '../services/database.js';
 
 function CostumeDetailPage() {
   const { id } = useParams();
   const [costume, setCostume] = useState(null);
   const [character, setCharacter] = useState(null);
+  const [assignedScenes, setAssignedScenes] = useState([]);
+  const [allCharacters, setAllCharacters] = useState([]);
+  const [allScenes, setAllScenes] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -23,6 +29,11 @@ function CostumeDetailPage() {
   const [photoUrls, setPhotoUrls] = useState([]);
   const [isAddingPhoto, setIsAddingPhoto] = useState(false);
   const [cameraInputRef, setCameraInputRef] = useState(null);
+
+  // Edit dialog state
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editCharacterId, setEditCharacterId] = useState('');
+  const [editSceneIds, setEditSceneIds] = useState([]);
 
   useEffect(() => {
     if (!id) return;
@@ -40,10 +51,25 @@ function CostumeDetailPage() {
         const initialCostume = await getCostumeById(id);
         setCostume(initialCostume);
 
+        // Get all characters and scenes for dropdowns
+        const characters = await getCharacters();
+        const scenes = await getScenes();
+        setAllCharacters(characters);
+        setAllScenes(scenes);
+
         // Get character if costume has one assigned
         if (initialCostume && initialCostume.character) {
           const characterData = await getCharacterById(initialCostume.character);
           setCharacter(characterData);
+        }
+
+        // Get scenes if costume has any assigned
+        if (initialCostume && initialCostume.scenes && initialCostume.scenes.length > 0) {
+          const sceneDataPromises = initialCostume.scenes.map(sceneId => getSceneById(sceneId));
+          const scenesData = await Promise.all(sceneDataPromises);
+          setAssignedScenes(scenesData.filter(s => s !== null));
+        } else {
+          setAssignedScenes([]);
         }
 
         // Subscribe to costume changes for reactive updates
@@ -152,6 +178,53 @@ function CostumeDetailPage() {
       await updateCostume(id, { notes: newNotes });
     } catch (err) {
       console.error('Failed to update notes:', err);
+      setError(err.message);
+    }
+  };
+
+  const handleOpenEditDialog = () => {
+    setEditCharacterId(costume.character || '');
+    setEditSceneIds(costume.scenes || []);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSceneToggle = (sceneId) => {
+    setEditSceneIds(prev => {
+      if (prev.includes(sceneId)) {
+        return prev.filter(id => id !== sceneId);
+      } else {
+        return [...prev, sceneId];
+      }
+    });
+  };
+
+  const handleSaveAssignments = async () => {
+    try {
+      await updateCostume(id, {
+        character: editCharacterId,
+        scenes: editSceneIds
+      });
+
+      // Update the character display
+      if (editCharacterId) {
+        const characterData = await getCharacterById(editCharacterId);
+        setCharacter(characterData);
+      } else {
+        setCharacter(null);
+      }
+
+      // Update the scenes display
+      if (editSceneIds.length > 0) {
+        const sceneDataPromises = editSceneIds.map(sceneId => getSceneById(sceneId));
+        const scenesData = await Promise.all(sceneDataPromises);
+        setAssignedScenes(scenesData.filter(s => s !== null));
+      } else {
+        setAssignedScenes([]);
+      }
+
+      setIsEditDialogOpen(false);
+    } catch (err) {
+      console.error('Failed to update assignments:', err);
       setError(err.message);
     }
   };
@@ -282,24 +355,59 @@ function CostumeDetailPage() {
 
           {/* Details section */}
           <Card>
-            <h2 className="text-xl font-bold mb-2">Details</h2>
-            <List>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Details</h2>
+              <Button size="sm" onClick={handleOpenEditDialog}>
+                Edit
+              </Button>
+            </div>
+
+            <List unstyled>
               <List.Item>
-                <span className="font-medium">Character:</span>
-                {character ? character.name : 'Not assigned'}
+                <div>
+                  <span className="font-medium">Character: </span>
+                  {character ? (
+                    <Link
+                      to={`/characters/${character.id}`}
+                      className="text-blue-600 hover:underline"
+                    >
+                      {character.name}
+                    </Link>
+                  ) : (
+                    <span className="text-gray-500">Not assigned</span>
+                  )}
+                </div>
               </List.Item>
               <List.Item>
-                <span className="font-medium">Scene:</span>
-                {costume.scene || 'Not assigned'}
+                <div>
+                  <span className="font-medium">Scenes: </span>
+                  {assignedScenes.length > 0 ? (
+                    <div className="inline">
+                      {assignedScenes.map((scn, index) => (
+                        <span key={scn.id}>
+                          <Link
+                            to={`/scene/${scn.id}`}
+                            className="text-blue-600 hover:underline"
+                          >
+                            Scene {scn.sceneNumber}
+                          </Link>
+                          {index < assignedScenes.length - 1 ? ', ' : ''}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-gray-500">Not assigned</span>
+                  )}
+                </div>
               </List.Item>
               <List.Item>
-                <span className="font-medium">Created:</span>
+                <span className="font-medium">Created: </span>
                 {costume.createdAt
                   ? new Date(costume.createdAt).toLocaleDateString()
                   : 'Unknown'}
               </List.Item>
               <List.Item>
-                <span className="font-medium">Last Updated:</span>
+                <span className="font-medium">Last Updated: </span>
                 {costume.updatedAt
                   ? new Date(costume.updatedAt).toLocaleDateString()
                   : 'Unknown'}
@@ -308,6 +416,63 @@ function CostumeDetailPage() {
           </Card>
         </div>
       </div>
+
+      {/* Edit Assignments Modal */}
+      <Modal show={isEditDialogOpen} onClose={() => setIsEditDialogOpen(false)}>
+        <Modal.Header>Edit Assignments</Modal.Header>
+        <Modal.Body>
+          <div className="space-y-6">
+            {/* Character Selection */}
+            <div>
+              <Label htmlFor="character-select" className="mb-2 block">
+                Character
+              </Label>
+              <Select
+                id="character-select"
+                value={editCharacterId}
+                onChange={(e) => setEditCharacterId(e.target.value)}
+              >
+                <option value="">Not assigned</option>
+                {allCharacters.map((char) => (
+                  <option key={char.id} value={char.id}>
+                    {char.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            {/* Scenes Multi-Select */}
+            <div>
+              <Label className="mb-2 block">Scenes</Label>
+              <div className="space-y-2 max-h-64 overflow-y-auto border rounded p-2">
+                {allScenes.length === 0 ? (
+                  <p className="text-gray-500 text-sm">No scenes available</p>
+                ) : (
+                  allScenes.map((scn) => (
+                    <div key={scn.id} className="flex items-center">
+                      <Checkbox
+                        id={`scene-${scn.id}`}
+                        checked={editSceneIds.includes(scn.id)}
+                        onChange={() => handleSceneToggle(scn.id)}
+                      />
+                      <Label htmlFor={`scene-${scn.id}`} className="ml-2">
+                        Scene {scn.sceneNumber}
+                        {scn.location && ` - ${scn.location}`}
+                      </Label>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button onClick={handleSaveAssignments}>Save</Button>
+          <Button color="gray" onClick={() => setIsEditDialogOpen(false)}>
+            Cancel
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 }

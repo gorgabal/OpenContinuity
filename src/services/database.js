@@ -38,9 +38,12 @@ const costumeSchema = {
       type: 'string',
       default: '',
     },
-    scene: {
-      type: 'string',
-      default: '',
+    scenes: {
+      type: 'array',
+      items: {
+        type: 'string'
+      },
+      default: []
     },
     image: {
       type: 'string',
@@ -253,12 +256,12 @@ export async function addCostume(costumeData = {}) {
     id: generateUUID(),
     name: costumeData.name || 'New Costume',
     character: costumeData.character || '',
-    scene: costumeData.scene || '',
+    scenes: costumeData.scenes || [],
     image: costumeData.image || 'https://placehold.co/400x300',
+    photos: costumeData.photos || [],
     notes: costumeData.notes || '',
     createdAt: now,
     updatedAt: now,
-    ...costumeData,
   };
 
   return await db.costumes.insert(costume);
