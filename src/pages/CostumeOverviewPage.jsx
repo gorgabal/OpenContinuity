@@ -6,6 +6,7 @@ import {
   getCostumes,
   getCostumes$,
   addCostume,
+  getCharacters,
 } from '../services/database.js';
 
 /*
@@ -17,6 +18,7 @@ Should contain the following:
 
 function CostumeOverviewPage() {
   const [costumes, setCostumes] = useState([]);
+  const [characters, setCharacters] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -30,9 +32,11 @@ function CostumeOverviewPage() {
         // Initialize database
         await initDatabase();
 
-        // Get initial costumes
+        // Get initial costumes and characters
         const initialCostumes = await getCostumes();
+        const allCharacters = await getCharacters();
         setCostumes(initialCostumes);
+        setCharacters(allCharacters);
 
         // Subscribe to costume changes for reactive updates
         const costumes$ = await getCostumes$();
@@ -114,6 +118,10 @@ function CostumeOverviewPage() {
               ? costume.photos[costume.photos.length - 1]
               : null;
 
+            // Find the character name by ID
+            const character = characters.find(c => c.id === costume.character);
+            const characterName = character ? character.name : 'Not assigned';
+
             return (
               <Card key={costume.id}>
                 {lastPhoto && (
@@ -127,7 +135,7 @@ function CostumeOverviewPage() {
                   {costume.name || 'Untitled Costume'}
                 </h5>
                 <p className="font-normal text-gray-700">
-                  Character: {costume.character || 'Not assigned'}
+                  Character: {characterName}
                 </p>
                 <p className="font-normal text-gray-700">
                   Scene: {costume.scene || 'Not assigned'}
