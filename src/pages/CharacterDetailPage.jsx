@@ -327,29 +327,44 @@ function CharacterDetailPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {costumes.map((costume) => (
-              <Card key={costume.id} className="relative">
-                <Link to={`/costumes/${costume.id}`}>
-                  <img 
-                    src={costume.image || 'https://placehold.co/400x300'}
-                    alt={costume.name}
-                    className="w-full h-48 object-cover rounded"
-                  />
-                  <h3 className="font-semibold mt-2">{costume.name}</h3>
-                  {costume.scene && (
-                    <p className="text-sm text-gray-600">Scene: {costume.scene}</p>
-                  )}
-                </Link>
-                <Button
-                  size="sm"
-                  color="failure"
-                  className="mt-2"
-                  onClick={() => handleUnassignCostume(costume.id)}
-                >
-                  Unassign
-                </Button>
-              </Card>
-            ))}
+            {costumes.map((costume) => {
+              // Get the last uploaded photo for preview
+              const lastPhoto = costume.photos && costume.photos.length > 0
+                ? costume.photos[costume.photos.length - 1]
+                : null;
+              
+              return (
+                <Card key={costume.id} className="relative">
+                  <Link to={`/costumes/${costume.id}`}>
+                    {lastPhoto ? (
+                      <img 
+                        src={lastPhoto.data}
+                        alt={costume.name}
+                        className="w-full h-48 object-cover rounded"
+                      />
+                    ) : (
+                      <img 
+                        src="https://placehold.co/400x300"
+                        alt={costume.name}
+                        className="w-full h-48 object-cover rounded"
+                      />
+                    )}
+                    <h3 className="font-semibold mt-2">{costume.name}</h3>
+                    {costume.scene && (
+                      <p className="text-sm text-gray-600">Scene: {costume.scene}</p>
+                    )}
+                  </Link>
+                  <Button
+                    size="sm"
+                    color="failure"
+                    className="mt-2"
+                    onClick={() => handleUnassignCostume(costume.id)}
+                  >
+                    Unassign
+                  </Button>
+                </Card>
+              )
+            })}
           </div>
         )}
       </Card>
@@ -365,29 +380,44 @@ function CharacterDetailPage() {
               </p>
             ) : (
               <div className="grid gap-3 max-h-96 overflow-y-auto">
-                {availableCostumes.map((costume) => (
-                  <Card key={costume.id} className="hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center space-x-4">
-                      <img 
-                        src={costume.image || 'https://placehold.co/150x200'}
-                        alt={costume.name}
-                        className="w-16 h-20 object-cover rounded"
-                      />
-                      <div className="flex-1">
-                        <h4 className="font-semibold">{costume.name}</h4>
-                        {costume.scene && (
-                          <p className="text-sm text-gray-600">Scene: {costume.scene}</p>
+                {availableCostumes.map((costume) => {
+                  // Get the last uploaded photo for preview
+                  const lastPhoto = costume.photos && costume.photos.length > 0
+                    ? costume.photos[costume.photos.length - 1]
+                    : null;
+                  
+                  return (
+                    <Card key={costume.id} className="hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center space-x-4">
+                        {lastPhoto ? (
+                          <img 
+                            src={lastPhoto.data}
+                            alt={costume.name}
+                            className="w-16 h-20 object-cover rounded"
+                          />
+                        ) : (
+                          <img 
+                            src="https://placehold.co/150x200"
+                            alt={costume.name}
+                            className="w-16 h-20 object-cover rounded"
+                          />
                         )}
+                        <div className="flex-1">
+                          <h4 className="font-semibold">{costume.name}</h4>
+                          {costume.scene && (
+                            <p className="text-sm text-gray-600">Scene: {costume.scene}</p>
+                          )}
+                        </div>
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleAssignCostume(costume.id)}
+                        >
+                          Assign
+                        </Button>
                       </div>
-                      <Button 
-                        size="sm" 
-                        onClick={() => handleAssignCostume(costume.id)}
-                      >
-                        Assign
-                      </Button>
-                    </div>
-                  </Card>
-                ))}
+                    </Card>
+                  )
+                })}
               </div>
             )}
           </div>
