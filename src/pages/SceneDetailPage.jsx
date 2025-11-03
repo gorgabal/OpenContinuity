@@ -187,19 +187,14 @@ function SceneDetailPage() {
       <div className="mb-6 flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Scene {scene.sceneNumber}</h1>
-          {shootingDay && (
-            <p className="text-gray-600 mt-2">
-              Shooting Day: {new Date(shootingDay.date).toLocaleDateString('nl-NL')} - {shootingDay.location}
-            </p>
-          )}
         </div>
-        <div className="space-x-2">
+        <div className="space-y-1">
           {!isEditing ? (
             <>
-              <Button onClick={() => setIsEditing(true)}>
+              <Button className="w-full" onClick={() => setIsEditing(true)}>
                 Edit
               </Button>
-              <Button color="gray" onClick={() => navigate('/scene-overview')}>
+              <Button className="w-full" color="gray" onClick={() => navigate('/scene-overview')}>
                 Back
               </Button>
             </>
@@ -252,14 +247,14 @@ function SceneDetailPage() {
                   <option value="">No shooting day assigned</option>
                   {shootingDays.map(day => (
                     <option key={day.id} value={day.id}>
-                      {new Date(day.date).toLocaleDateString('nl-NL')} - {day.location}
+                      {new Date(day.date).toLocaleDateString('nl-NL')}
                     </option>
                   ))}
                 </Select>
               ) : (
                 <p className="mt-1">
                   {shootingDay
-                    ? `${new Date(shootingDay.date).toLocaleDateString('nl-NL')} - ${shootingDay.location}`
+                    ? `${new Date(shootingDay.date).toLocaleDateString('nl-NL')}`
                     : 'Not assigned'
                   }
                 </p>
@@ -294,8 +289,8 @@ function SceneDetailPage() {
                           <div className="flex items-center justify-between">
                             <span className="font-medium text-sm">{character.name}</span>
                             {isEditing && (
-                              <Button 
-                                size="xs" 
+                              <Button
+                                size="xs"
                                 color="failure"
                                 onClick={() => handleCharacterToggle(charId)}
                               >
@@ -327,7 +322,7 @@ function SceneDetailPage() {
                       const costume = costumes.find(c => c.id === costId)
                       return costume ? (
                         <Card key={costId} className="relative">
-                          <img 
+                          <img
                             src={costume.image || 'https://placehold.co/150x200'}
                             alt={costume.name}
                             className="w-full h-32 object-cover rounded mb-2"
@@ -335,8 +330,8 @@ function SceneDetailPage() {
                           <div className="flex items-center justify-between">
                             <span className="font-medium text-sm">{costume.name}</span>
                             {isEditing && (
-                              <Button 
-                                size="xs" 
+                              <Button
+                                size="xs"
                                 color="failure"
                                 onClick={() => handleCostumeToggle(costId)}
                               >
@@ -350,8 +345,8 @@ function SceneDetailPage() {
                   </div>
                 )}
                 {isEditing && (
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     onClick={() => setShowCostumeModal(true)}
                     disabled={editData.characterIds.length === 0}
                   >
@@ -395,8 +390,8 @@ function SceneDetailPage() {
                             <p className="text-sm text-gray-600">Actor: {character.actor}</p>
                           )}
                         </div>
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           onClick={() => {
                             handleCharacterToggle(character.id)
                             setShowCharacterModal(false)
@@ -427,12 +422,12 @@ function SceneDetailPage() {
               // Filter costumes: only show costumes assigned to selected characters
               const availableCostumes = costumes.filter(costume => {
                 // Check if costume is assigned to any of the selected characters
-                const isAssignedToSelectedCharacter = editData.characterIds.some(charId => 
+                const isAssignedToSelectedCharacter = editData.characterIds.some(charId =>
                   costume.character === charId
                 )
                 // Check if costume is not already selected
                 const isNotAlreadySelected = !editData.costumeIds.includes(costume.id)
-                
+
                 return isAssignedToSelectedCharacter && isNotAlreadySelected
               })
 
@@ -451,7 +446,7 @@ function SceneDetailPage() {
                     return (
                       <Card key={costume.id} className="hover:bg-gray-50 transition-colors">
                         <div className="flex items-center space-x-4">
-                          <img 
+                          <img
                             src={costume.image || 'https://placehold.co/150x200'}
                             alt={costume.name}
                             className="w-20 h-24 object-cover rounded"
@@ -462,8 +457,8 @@ function SceneDetailPage() {
                               <p className="text-sm text-gray-600">Character: {costumeCharacter.name}</p>
                             )}
                           </div>
-                          <Button 
-                            size="sm" 
+                          <Button
+                            size="sm"
                             onClick={() => {
                               handleCostumeToggle(costume.id)
                               setShowCostumeModal(false)

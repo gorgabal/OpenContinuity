@@ -208,26 +208,26 @@ function CharacterDetailPage() {
             <p className="text-gray-600 mt-2">Played by: {character.actor}</p>
           )}
         </div>
-        <div className="space-x-2">
+        <div className="space-y-1">
           {!isEditing ? (
             <>
-              <Button onClick={() => setIsEditing(true)}>
+              <Button className="w-full" onClick={() => setIsEditing(true)}>
                 Edit
               </Button>
-              <Button color="failure" onClick={handleDelete}>
+              <Button className="w-full" color="failure" onClick={handleDelete}>
                 Delete
               </Button>
-              <Button color="gray" onClick={() => navigate('/characters')}>
+              <Button className="w-full" color="gray" onClick={() => navigate('/characters')}>
                 Back
               </Button>
             </>
           ) : (
             <>
-              <Button onClick={handleSave} disabled={saving}>
+              <Button className="w-full" onClick={handleSave} disabled={saving}>
                 {saving ? <Spinner size="sm" className="mr-2" /> : null}
                 Save
               </Button>
-              <Button color="gray" onClick={handleCancel} disabled={saving}>
+              <Button className="w-full" color="gray" onClick={handleCancel} disabled={saving}>
                 Cancel
               </Button>
             </>

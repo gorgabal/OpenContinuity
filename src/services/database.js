@@ -325,7 +325,7 @@ export async function getCostumeById$(id) {
 export async function addPhotoToCostume(costumeId, photoFile) {
   const db = await getDatabase();
   const costume = await db.costumes.findOne(costumeId).exec();
-  
+
   if (!costume) {
     throw new Error(`Costume with id ${costumeId} not found`);
   }
@@ -362,7 +362,7 @@ export async function addPhotoToCostume(costumeId, photoFile) {
 export async function getPhotoUrl(costumeId, photoId) {
   const db = await getDatabase();
   const costume = await db.costumes.findOne(costumeId).exec();
-  
+
   if (!costume) {
     throw new Error(`Costume with id ${costumeId} not found`);
   }
@@ -379,14 +379,14 @@ export async function getPhotoUrl(costumeId, photoId) {
 export async function removePhotoFromCostume(costumeId, photoId) {
   const db = await getDatabase();
   const costume = await db.costumes.findOne(costumeId).exec();
-  
+
   if (!costume) {
     throw new Error(`Costume with id ${costumeId} not found`);
   }
 
   // Remove from photos array
   const updatedPhotos = (costume.photos || []).filter(photo => photo.id !== photoId);
-  
+
   await costume.update({
     $set: {
       photos: updatedPhotos,
@@ -545,12 +545,12 @@ export async function addScene(sceneData = {}) {
 
   const scene = {
     id: generateUUID(),
-    sceneNumber: cleanSceneData.sceneNumber || 1,
-    shootingDayId: cleanSceneData.shootingDayId || '',
-    location: cleanSceneData.location || '',
-    characterIds: cleanSceneData.characterIds || [],
-    time: cleanSceneData.time || '',
-    costumeIds: cleanSceneData.costumeIds || [],
+    sceneNumber: sceneData.sceneNumber || 1,
+    shootingDayId: sceneData.shootingDayId || '',
+    location: sceneData.location || '',
+    characterIds: sceneData.characterIds || [],
+    time: sceneData.time || '',
+    costumeIds: sceneData.costumeIds || [],
     createdAt: now,
     updatedAt: now,
   };
@@ -601,7 +601,7 @@ export async function getScenesByShootingDayId(shootingDayId) {
 export async function ensureDefaultShootingDay() {
   const db = await getDatabase();
   const existingShootingDays = await db.shootingdays.find().exec();
-  
+
   if (existingShootingDays.length === 0) {
     return await addShootingDay({
       date: new Date().toISOString().split('T')[0],
@@ -609,6 +609,6 @@ export async function ensureDefaultShootingDay() {
       status: 'Gepland'
     });
   }
-  
+
   return existingShootingDays[0];
 }

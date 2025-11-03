@@ -125,35 +125,31 @@ function CostumeOverviewPage() {
             const characterName = character ? character.name : 'Not assigned';
 
             return (
-              <Card key={costume.id}>
-                {lastPhoto && (
-                  <img
-                    src={lastPhoto.data}
-                    alt={costume.name}
-                    className="rounded-t-lg h-48 w-full object-cover"
-                  />
-                )}
-                <h5 className="text-xl font-bold tracking-tight text-gray-900">
-                  {costume.name || 'Untitled Costume'}
-                </h5>
-                <p className="font-normal text-gray-700">
-                  Character: {characterName}
-                </p>
-                <p className="font-normal text-gray-700">
-                  Scene: {costume.scene || 'Not assigned'}
-                </p>
-                {costume.photos && costume.photos.length > 0 && (
-                  <p className="font-normal text-gray-500 text-sm">
-                    {costume.photos.length} photo{costume.photos.length !== 1 ? 's' : ''}
+              <Link key={costume.id} to={`/costumes/${costume.id}`}>
+                <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
+                  {lastPhoto && (
+                    <img
+                      src={lastPhoto.data}
+                      alt={costume.name}
+                      className="rounded-t-lg h-48 w-full object-cover"
+                    />
+                  )}
+                  <h5 className="text-xl font-bold tracking-tight text-gray-900">
+                    {costume.name || 'Untitled Costume'}
+                  </h5>
+                  <p className="font-normal text-gray-700">
+                    Character: {characterName}
                   </p>
-                )}
-                <Link
-                  to={`/costumes/${costume.id}`}
-                  className="text-blue-600 hover:underline"
-                >
-                  View Details →
-                </Link>
-              </Card>
+                  <p className="font-normal text-gray-700">
+                    Scene: {costume.scene || 'Not assigned'}
+                  </p>
+                  {costume.photos && costume.photos.length > 0 && (
+                    <p className="font-normal text-gray-500 text-sm">
+                      {costume.photos.length} photo{costume.photos.length !== 1 ? 's' : ''}
+                    </p>
+                  )}
+                </Card>
+              </Link>
             );
           })}
         </div>

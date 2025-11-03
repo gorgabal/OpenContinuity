@@ -32,7 +32,7 @@ function SceneOverviewPage() {
       const tomorrow = new Date()
       tomorrow.setDate(tomorrow.getDate() + 1)
       const dateString = tomorrow.toISOString().split('T')[0]
-      
+
       await createShootingDay({
         date: dateString,
         location: '',
@@ -46,10 +46,10 @@ function SceneOverviewPage() {
   const handleAddScene = async () => {
     try {
       // Find the next scene number
-      const maxSceneNumber = scenes.length > 0 
+      const maxSceneNumber = scenes.length > 0
         ? Math.max(...scenes.map(scene => scene.sceneNumber))
         : 0
-      
+
       await createScene({
         sceneNumber: maxSceneNumber + 1,
         shootingDayId: '',
@@ -106,49 +106,51 @@ function SceneOverviewPage() {
               const shootingDay = shootingDays.find(day => day.id === scene.shootingDayId)
 
               return (
-                <Link key={scene.id} to={`/scene/${scene.id}`}>
-                  <Card className="hover:bg-gray-50 transition-colors">
-                    <div className="flex flex-row">
-                      {/* Scene number box */}
-                      <div className="bg-gray-300 p-6 flex items-center justify-center min-w-[100px]">
-                        <span className="text-4xl font-bold">{scene.sceneNumber}</span>
-                      </div>
+                <div key={scene.id}>
+                  <Link to={`/scene/${scene.id}`}>
+                    <Card className="hover:bg-gray-50 transition-colors">
+                      <div className="flex flex-row">
+                        {/* Scene number box */}
+                        <div className="bg-gray-300 p-6 flex items-center justify-center min-w-[100px]">
+                          <span className="text-4xl font-bold">{scene.sceneNumber}</span>
+                        </div>
 
-                      {/* Scene details */}
-                      <div className="p-4 flex-grow">
-                        <ul className="space-y-1">
-                          {scene.location && (
-                            <li className="text-gray-700">Locatie: {scene.location}</li>
-                          )}
-                          {scene.characterIds && scene.characterIds.length > 0 && (
-                            <li className="text-gray-700">
-                              Personages: {scene.characterIds.map(charId => {
-                                const character = characters.find(c => c.id === charId)
-                                return character ? character.name : null
-                              }).filter(name => name).join(', ')}
-                            </li>
-                          )}
-                          {scene.time && (
-                            <li className="text-gray-700">Tijd: {scene.time}</li>
-                          )}
-                          {scene.costumeIds && scene.costumeIds.length > 0 && (
-                            <li className="text-gray-700">
-                              Kostuums: {scene.costumeIds.map(costId => {
-                                const costume = costumes.find(c => c.id === costId)
-                                return costume ? costume.name : null
-                              }).filter(name => name).join(', ')}
-                            </li>
-                          )}
-                          {shootingDay && (
-                            <li className="text-gray-700 mt-2">
-                              Draaidag: {new Date(shootingDay.date).toLocaleDateString('nl-NL')}
-                            </li>
-                          )}
-                        </ul>
+                        {/* Scene details */}
+                        <div className="p-4 flex-grow">
+                          <ul className="space-y-1">
+                            {scene.location && (
+                              <li className="text-gray-700">Locatie: {scene.location}</li>
+                            )}
+                            {scene.characterIds && scene.characterIds.length > 0 && (
+                              <li className="text-gray-700">
+                                Personages: {scene.characterIds.map(charId => {
+                                  const character = characters.find(c => c.id === charId)
+                                  return character ? character.name : null
+                                }).filter(name => name).join(', ')}
+                              </li>
+                            )}
+                            {scene.time && (
+                              <li className="text-gray-700">Tijd: {scene.time}</li>
+                            )}
+                            {scene.costumeIds && scene.costumeIds.length > 0 && (
+                              <li className="text-gray-700">
+                                Kostuums: {scene.costumeIds.map(costId => {
+                                  const costume = costumes.find(c => c.id === costId)
+                                  return costume ? costume.name : null
+                                }).filter(name => name).join(', ')}
+                              </li>
+                            )}
+                            {shootingDay && (
+                              <li className="text-gray-700 mt-2">
+                                Draaidag: {new Date(shootingDay.date).toLocaleDateString('nl-NL')}
+                              </li>
+                            )}
+                          </ul>
+                        </div>
                       </div>
-                    </div>
-                  </Card>
-                </Link>
+                    </Card>
+                  </Link>
+                </div>
               )
             })
           )}
