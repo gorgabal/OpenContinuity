@@ -7,5 +7,10 @@ export default defineConfig({
   server: {
     host: true,
     https: false,
+    allowedHosts: [
+      'localhost',
+      '127.0.0.1',
+      '.ngrok-free.dev',
+    ]
   }
 });

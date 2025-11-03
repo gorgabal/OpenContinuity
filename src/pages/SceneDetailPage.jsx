@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { Card, Button, Spinner, TextInput, Label, Select } from 'flowbite-react'
-import { getSceneById, getShootingDayById, getShootingDays, updateScene } from '../services/database'
+import { Card, Button, Spinner, TextInput, Label, Select, Modal } from 'flowbite-react'
+import { getSceneById, getShootingDayById, getShootingDays, updateScene, getCharacters, getCostumes } from '../services/database'
 
 function SceneDetailPage() {
   const { id } = useParams()
@@ -10,26 +10,32 @@ function SceneDetailPage() {
   const [scene, setScene] = useState(null)
   const [shootingDay, setShootingDay] = useState(null)
   const [shootingDays, setShootingDays] = useState([])
+  const [characters, setCharacters] = useState([])
+  const [costumes, setCostumes] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [isEditing, setIsEditing] = useState(false)
+  const [showCharacterModal, setShowCharacterModal] = useState(false)
+  const [showCostumeModal, setShowCostumeModal] = useState(false)
 
   const [editData, setEditData] = useState({
     sceneNumber: '',
     shootingDayId: '',
     location: '',
-    characters: '',
-    costume: ''
+    characterIds: [],
+    costumeIds: []
   })
 
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true)
-        const [sceneData, shootingDaysData] = await Promise.all([
+        const [sceneData, shootingDaysData, charactersData, costumesData] = await Promise.all([
           getSceneById(id),
-          getShootingDays()
+          getShootingDays(),
+          getCharacters(),
+          getCostumes()
         ])
 
         if (!sceneData) {
@@ -39,14 +45,16 @@ function SceneDetailPage() {
 
         setScene(sceneData)
         setShootingDays(shootingDaysData)
+        setCharacters(charactersData)
+        setCostumes(costumesData)
 
         // Initialize edit data
         setEditData({
           sceneNumber: sceneData.sceneNumber || '',
           shootingDayId: sceneData.shootingDayId || '',
           location: sceneData.location || '',
-          characters: sceneData.characters || '',
-          costume: sceneData.costume || ''
+          characterIds: sceneData.characterIds || [],
+          costumeIds: sceneData.costumeIds || []
         })
 
         // Load shooting day if scene has one assigned
@@ -108,11 +116,29 @@ function SceneDetailPage() {
       sceneNumber: scene.sceneNumber || '',
       shootingDayId: scene.shootingDayId || '',
       location: scene.location || '',
-      characters: scene.characters || '',
-      costume: scene.costume || ''
+      characterIds: scene.characterIds || [],
+      costumeIds: scene.costumeIds || []
     })
     setIsEditing(false)
     setError(null)
+  }
+
+  const handleCharacterToggle = (characterId) => {
+    setEditData(prev => ({
+      ...prev,
+      characterIds: prev.characterIds.includes(characterId)
+        ? prev.characterIds.filter(id => id !== characterId)
+        : [...prev.characterIds, characterId]
+    }))
+  }
+
+  const handleCostumeToggle = (costumeId) => {
+    setEditData(prev => ({
+      ...prev,
+      costumeIds: prev.costumeIds.includes(costumeId)
+        ? prev.costumeIds.filter(id => id !== costumeId)
+        : [...prev.costumeIds, costumeId]
+    }))
   }
 
   if (loading) {
@@ -254,32 +280,88 @@ function SceneDetailPage() {
               )}
             </div>
 
-            <div>
-              <Label htmlFor="characters" value="Characters" />
-              {isEditing ? (
-                <TextInput
-                  id="characters"
-                  value={editData.characters}
-                  onChange={(e) => setEditData({ ...editData, characters: e.target.value })}
-                  placeholder="e.g. John, Maria, Peter"
-                />
-              ) : (
-                <p className="mt-1">{scene.characters || 'Not specified'}</p>
-              )}
+            <div className="md:col-span-2">
+              <Label value="Characters" />
+              <div className="mt-2">
+                {editData.characterIds.length === 0 ? (
+                  <p className="text-gray-500 mb-2">No characters selected</p>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-2">
+                    {editData.characterIds.map(charId => {
+                      const character = characters.find(c => c.id === charId)
+                      return character ? (
+                        <Card key={charId} className="relative">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-sm">{character.name}</span>
+                            {isEditing && (
+                              <Button 
+                                size="xs" 
+                                color="failure"
+                                onClick={() => handleCharacterToggle(charId)}
+                              >
+                                Remove
+                              </Button>
+                            )}
+                          </div>
+                        </Card>
+                      ) : null
+                    })}
+                  </div>
+                )}
+                {isEditing && (
+                  <Button size="sm" onClick={() => setShowCharacterModal(true)}>
+                    {editData.characterIds.length === 0 ? 'Add Characters' : 'Add More Characters'}
+                  </Button>
+                )}
+              </div>
             </div>
 
-            <div>
-              <Label htmlFor="costume" value="Costume/Outfit" />
-              {isEditing ? (
-                <TextInput
-                  id="costume"
-                  value={editData.costume}
-                  onChange={(e) => setEditData({ ...editData, costume: e.target.value })}
-                  placeholder="e.g. Travel outfit, Formal wear"
-                />
-              ) : (
-                <p className="mt-1">{scene.costume || 'Not specified'}</p>
-              )}
+            <div className="md:col-span-2">
+              <Label value="Costumes" />
+              <div className="mt-2">
+                {editData.costumeIds.length === 0 ? (
+                  <p className="text-gray-500 mb-2">No costumes selected</p>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-2">
+                    {editData.costumeIds.map(costId => {
+                      const costume = costumes.find(c => c.id === costId)
+                      return costume ? (
+                        <Card key={costId} className="relative">
+                          <img 
+                            src={costume.image || 'https://placehold.co/150x200'}
+                            alt={costume.name}
+                            className="w-full h-32 object-cover rounded mb-2"
+                          />
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-sm">{costume.name}</span>
+                            {isEditing && (
+                              <Button 
+                                size="xs" 
+                                color="failure"
+                                onClick={() => handleCostumeToggle(costId)}
+                              >
+                                Remove
+                              </Button>
+                            )}
+                          </div>
+                        </Card>
+                      ) : null
+                    })}
+                  </div>
+                )}
+                {isEditing && (
+                  <Button 
+                    size="sm" 
+                    onClick={() => setShowCostumeModal(true)}
+                    disabled={editData.characterIds.length === 0}
+                  >
+                    {editData.costumeIds.length === 0 ? 'Add Costumes' : 'Add More Costumes'}
+                  </Button>
+                )}
+                {isEditing && editData.characterIds.length === 0 && (
+                  <p className="text-sm text-gray-500 mt-1">Select characters first to add costumes</p>
+                )}
+              </div>
             </div>
 
           </div>
@@ -290,6 +372,120 @@ function SceneDetailPage() {
           </div>
         </div>
       </Card>
+
+      {/* Character Selection Modal */}
+      <Modal show={showCharacterModal} onClose={() => setShowCharacterModal(false)}>
+        <Modal.Header>Select Characters for Scene {scene.sceneNumber}</Modal.Header>
+        <Modal.Body>
+          <div className="space-y-4">
+            {characters.length === 0 ? (
+              <p className="text-gray-500 text-center py-8">
+                No characters available. Create characters first.
+              </p>
+            ) : (
+              <div className="grid gap-3 max-h-96 overflow-y-auto">
+                {characters
+                  .filter(character => !editData.characterIds.includes(character.id))
+                  .map((character) => (
+                    <Card key={character.id} className="hover:bg-gray-50 transition-colors">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h4 className="font-semibold">{character.name}</h4>
+                          {character.actor && (
+                            <p className="text-sm text-gray-600">Actor: {character.actor}</p>
+                          )}
+                        </div>
+                        <Button 
+                          size="sm" 
+                          onClick={() => {
+                            handleCharacterToggle(character.id)
+                            setShowCharacterModal(false)
+                          }}
+                        >
+                          Add
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+              </div>
+            )}
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button color="gray" onClick={() => setShowCharacterModal(false)}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Costume Selection Modal */}
+      <Modal show={showCostumeModal} onClose={() => setShowCostumeModal(false)}>
+        <Modal.Header>Select Costumes for Scene {scene.sceneNumber}</Modal.Header>
+        <Modal.Body>
+          <div className="space-y-4">
+            {(() => {
+              // Filter costumes: only show costumes assigned to selected characters
+              const availableCostumes = costumes.filter(costume => {
+                // Check if costume is assigned to any of the selected characters
+                const isAssignedToSelectedCharacter = editData.characterIds.some(charId => 
+                  costume.character === charId
+                )
+                // Check if costume is not already selected
+                const isNotAlreadySelected = !editData.costumeIds.includes(costume.id)
+                
+                return isAssignedToSelectedCharacter && isNotAlreadySelected
+              })
+
+              if (availableCostumes.length === 0) {
+                return (
+                  <p className="text-gray-500 text-center py-8">
+                    No costumes available for the selected characters.
+                  </p>
+                )
+              }
+
+              return (
+                <div className="grid gap-3 max-h-96 overflow-y-auto">
+                  {availableCostumes.map((costume) => {
+                    const costumeCharacter = characters.find(c => c.id === costume.character)
+                    return (
+                      <Card key={costume.id} className="hover:bg-gray-50 transition-colors">
+                        <div className="flex items-center space-x-4">
+                          <img 
+                            src={costume.image || 'https://placehold.co/150x200'}
+                            alt={costume.name}
+                            className="w-20 h-24 object-cover rounded"
+                          />
+                          <div className="flex-1">
+                            <h4 className="font-semibold">{costume.name}</h4>
+                            {costumeCharacter && (
+                              <p className="text-sm text-gray-600">Character: {costumeCharacter.name}</p>
+                            )}
+                          </div>
+                          <Button 
+                            size="sm" 
+                            onClick={() => {
+                              handleCostumeToggle(costume.id)
+                              setShowCostumeModal(false)
+                            }}
+                          >
+                            Add
+                          </Button>
+                        </div>
+                      </Card>
+                    )
+                  })}
+                </div>
+              )
+            })()}
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button color="gray" onClick={() => setShowCostumeModal(false)}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   )
 }

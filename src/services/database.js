@@ -168,17 +168,23 @@ const sceneSchema = {
       type: 'string',
       default: '',
     },
-    characters: {
-      type: 'string',
-      default: '',
+    characterIds: {
+      type: 'array',
+      items: {
+        type: 'string'
+      },
+      default: []
     },
     time: {
       type: 'string',
       default: '',
     },
-    costume: {
-      type: 'string',
-      default: '',
+    costumeIds: {
+      type: 'array',
+      items: {
+        type: 'string'
+      },
+      default: []
     },
     createdAt: {
       type: 'string',
@@ -539,15 +545,14 @@ export async function addScene(sceneData = {}) {
 
   const scene = {
     id: generateUUID(),
-    sceneNumber: sceneData.sceneNumber || 1,
-    shootingDayId: sceneData.shootingDayId || '',
-    location: sceneData.location || '',
-    characters: sceneData.characters || '',
-    time: sceneData.time || '',
-    costume: sceneData.costume || '',
+    sceneNumber: cleanSceneData.sceneNumber || 1,
+    shootingDayId: cleanSceneData.shootingDayId || '',
+    location: cleanSceneData.location || '',
+    characterIds: cleanSceneData.characterIds || [],
+    time: cleanSceneData.time || '',
+    costumeIds: cleanSceneData.costumeIds || [],
     createdAt: now,
     updatedAt: now,
-    ...sceneData,
   };
 
   return await db.scenes.insert(scene);

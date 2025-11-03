@@ -1,11 +1,31 @@
+import { useState, useEffect } from 'react'
 import { Card, Button } from 'flowbite-react'
 import { Link } from 'react-router-dom'
 import { useScenes } from '../hooks/useScenes'
 import { useShootingDays } from '../hooks/useShootingDays'
+import { getCharacters, getCostumes } from '../services/database'
 
 function SceneOverviewPage() {
   const { scenes, loading, error, createScene } = useScenes()
   const { shootingDays, createShootingDay } = useShootingDays()
+  const [characters, setCharacters] = useState([])
+  const [costumes, setCostumes] = useState([])
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [charactersData, costumesData] = await Promise.all([
+          getCharacters(),
+          getCostumes()
+        ])
+        setCharacters(charactersData)
+        setCostumes(costumesData)
+      } catch (err) {
+        console.error('Error loading characters/costumes:', err)
+      }
+    }
+    loadData()
+  }, [])
 
   const handleAddShootingDay = async () => {
     try {
@@ -34,9 +54,9 @@ function SceneOverviewPage() {
         sceneNumber: maxSceneNumber + 1,
         shootingDayId: '',
         location: '',
-        characters: '',
+        characterIds: [],
         time: '',
-        costume: ''
+        costumeIds: []
       })
     } catch (error) {
       alert('Error creating scene: ' + error.message)
@@ -100,14 +120,24 @@ function SceneOverviewPage() {
                           {scene.location && (
                             <li className="text-gray-700">Locatie: {scene.location}</li>
                           )}
-                          {scene.characters && (
-                            <li className="text-gray-700">Personages: {scene.characters}</li>
+                          {scene.characterIds && scene.characterIds.length > 0 && (
+                            <li className="text-gray-700">
+                              Personages: {scene.characterIds.map(charId => {
+                                const character = characters.find(c => c.id === charId)
+                                return character ? character.name : null
+                              }).filter(name => name).join(', ')}
+                            </li>
                           )}
                           {scene.time && (
                             <li className="text-gray-700">Tijd: {scene.time}</li>
                           )}
-                          {scene.costume && (
-                            <li className="text-gray-700">Kostuum: {scene.costume}</li>
+                          {scene.costumeIds && scene.costumeIds.length > 0 && (
+                            <li className="text-gray-700">
+                              Kostuums: {scene.costumeIds.map(costId => {
+                                const costume = costumes.find(c => c.id === costId)
+                                return costume ? costume.name : null
+                              }).filter(name => name).join(', ')}
+                            </li>
                           )}
                           {shootingDay && (
                             <li className="text-gray-700 mt-2">

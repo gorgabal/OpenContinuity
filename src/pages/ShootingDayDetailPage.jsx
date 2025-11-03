@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Card, Button, Spinner, TextInput, Label, Select, Modal } from 'flowbite-react'
-import { getShootingDayById, updateShootingDay, getScenesByShootingDayId, getCostumes, getScenes, updateScene } from '../services/database'
+import { getShootingDayById, updateShootingDay, getScenesByShootingDayId, getCostumes, getScenes, updateScene, getCharacters } from '../services/database'
 
 function ShootingDayDetailPage() {
   const { id } = useParams()
@@ -9,6 +9,7 @@ function ShootingDayDetailPage() {
   
   const [shootingDay, setShootingDay] = useState(null)
   const [assignedScenes, setAssignedScenes] = useState([])
+  const [characters, setCharacters] = useState([])
   const [costumes, setCostumes] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -29,10 +30,11 @@ function ShootingDayDetailPage() {
     const loadData = async () => {
       try {
         setLoading(true)
-        const [shootingDayData, assignedScenesData, allScenesData, costumesData] = await Promise.all([
+        const [shootingDayData, assignedScenesData, allScenesData, charactersData, costumesData] = await Promise.all([
           getShootingDayById(id),
           getScenesByShootingDayId(id),
           getScenes(),
+          getCharacters(),
           getCostumes()
         ])
         
@@ -43,6 +45,7 @@ function ShootingDayDetailPage() {
         
         setShootingDay(shootingDayData)
         setAssignedScenes(assignedScenesData)
+        setCharacters(charactersData)
         setCostumes(costumesData)
         
         // Initialize edit data
@@ -152,17 +155,13 @@ function ShootingDayDetailPage() {
     }
   }
 
-  // Get unique characters from assigned scenes
-  const getUniqueCharacters = () => {
-    const allCharacters = assignedScenes
-      .map(scene => scene.characters || '')
-      .filter(characters => characters.trim())
-      .join(', ')
-      .split(',')
-      .map(char => char.trim())
-      .filter(char => char)
+  // Get unique character IDs from assigned scenes
+  const getUniqueCharacterIds = () => {
+    const allCharacterIds = assignedScenes
+      .flatMap(scene => scene.characterIds || [])
+      .filter(id => id)
     
-    return [...new Set(allCharacters)]
+    return [...new Set(allCharacterIds)]
   }
 
   if (loading) {
@@ -206,7 +205,7 @@ function ShootingDayDetailPage() {
     )
   }
 
-  const uniqueCharacters = getUniqueCharacters()
+  const uniqueCharacterIds = getUniqueCharacterIds()
 
   return (
     <div className="p-4 max-w-6xl mx-auto">
@@ -340,11 +339,21 @@ function ShootingDayDetailPage() {
                       {scene.location && (
                         <li className="text-gray-700">Locatie: {scene.location}</li>
                       )}
-                      {scene.characters && (
-                        <li className="text-gray-700">Personages: {scene.characters}</li>
+                      {scene.characterIds && scene.characterIds.length > 0 && (
+                        <li className="text-gray-700">
+                          Personages: {scene.characterIds.map(charId => {
+                            const character = characters.find(c => c.id === charId)
+                            return character ? character.name : null
+                          }).filter(name => name).join(', ')}
+                        </li>
                       )}
-                      {scene.costume && (
-                        <li className="text-gray-700">Kostuum: {scene.costume}</li>
+                      {scene.costumeIds && scene.costumeIds.length > 0 && (
+                        <li className="text-gray-700">
+                          Kostuums: {scene.costumeIds.map(costId => {
+                            const costume = costumes.find(c => c.id === costId)
+                            return costume ? costume.name : null
+                          }).filter(name => name).join(', ')}
+                        </li>
                       )}
                     </ul>
                   </Link>
@@ -371,21 +380,25 @@ function ShootingDayDetailPage() {
         <div className="space-y-4">
           <h2 className="text-xl font-bold mb-4">Characters & Costumes</h2>
           
-          {uniqueCharacters.length === 0 ? (
+          {uniqueCharacterIds.length === 0 ? (
             <Card>
               <p className="text-gray-500 text-center py-8">
                 No characters found in assigned scenes.
               </p>
             </Card>
           ) : (
-            uniqueCharacters.map((character, index) => {
+            uniqueCharacterIds.map((characterId) => {
+              const character = characters.find(c => c.id === characterId)
+              if (!character) return null
+              
               const characterCostumes = costumes.filter(costume => 
-                costume.character && costume.character.toLowerCase().includes(character.toLowerCase())
+                costume.character === character.id || 
+                costume.character === character.name
               )
               
               return (
-                <Card key={index}>
-                  <h3 className="text-lg font-bold mb-4">{character}</h3>
+                <Card key={characterId}>
+                  <h3 className="text-lg font-bold mb-4">{character.name}</h3>
                   
                   {characterCostumes.length === 0 ? (
                     <p className="text-gray-500">No costumes found for this character.</p>
@@ -433,8 +446,13 @@ function ShootingDayDetailPage() {
                         {scene.location && (
                           <p className="text-sm text-gray-600">Location: {scene.location}</p>
                         )}
-                        {scene.characters && (
-                          <p className="text-sm text-gray-600">Characters: {scene.characters}</p>
+                        {scene.characterIds && scene.characterIds.length > 0 && (
+                          <p className="text-sm text-gray-600">
+                            Characters: {scene.characterIds.map(charId => {
+                              const character = characters.find(c => c.id === charId)
+                              return character ? character.name : null
+                            }).filter(name => name).join(', ')}
+                          </p>
                         )}
                       </div>
                       <Button 
