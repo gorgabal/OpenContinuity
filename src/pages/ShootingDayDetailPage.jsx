@@ -398,26 +398,45 @@ function ShootingDayDetailPage() {
               
               return (
                 <Card key={characterId}>
-                  <h3 className="text-lg font-bold mb-4">{character.name}</h3>
+                  <Link to={`/characters/${character.id}`}>
+                    <h3 className="text-lg font-bold mb-4 hover:text-blue-600 transition-colors cursor-pointer">
+                      {character.name}
+                    </h3>
+                  </Link>
                   
                   {characterCostumes.length === 0 ? (
                     <p className="text-gray-500">No costumes found for this character.</p>
                   ) : (
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {characterCostumes.map((costume) => (
-                        <Link key={costume.id} to={`/costumes/${costume.id}`}>
-                          <div className="hover:opacity-75 transition-opacity">
-                            <img 
-                              src={costume.image || 'https://placehold.co/150x200'}
-                              alt={costume.name}
-                              className="w-full h-auto rounded-lg shadow-md"
-                            />
-                            <p className="text-sm text-center mt-2 font-medium">
-                              {costume.name}
-                            </p>
-                          </div>
-                        </Link>
-                      ))}
+                      {characterCostumes.map((costume) => {
+                        // Get the last uploaded photo for preview
+                        const lastPhoto = costume.photos && costume.photos.length > 0
+                          ? costume.photos[costume.photos.length - 1]
+                          : null;
+                        
+                        return (
+                          <Link key={costume.id} to={`/costumes/${costume.id}`}>
+                            <div className="hover:opacity-75 transition-opacity">
+                              {lastPhoto ? (
+                                <img 
+                                  src={lastPhoto.data}
+                                  alt={costume.name}
+                                  className="w-full h-auto rounded-lg shadow-md"
+                                />
+                              ) : (
+                                <img 
+                                  src="https://placehold.co/150x200"
+                                  alt={costume.name}
+                                  className="w-full h-auto rounded-lg shadow-md"
+                                />
+                              )}
+                              <p className="text-sm text-center mt-2 font-medium">
+                                {costume.name}
+                              </p>
+                            </div>
+                          </Link>
+                        )
+                      })}
                     </div>
                   )}
                 </Card>
