@@ -16,6 +16,20 @@ import CharacterDetailPage from './pages/CharacterDetailPage.jsx';
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
+      <div style={{
+        backgroundColor: '#dc2626',
+        color: 'white',
+        padding: '12px 20px',
+        textAlign: 'center',
+        fontWeight: 'bold',
+        fontSize: '14px',
+        position: 'sticky',
+        top: 0,
+        zIndex: 9999,
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+      }}>
+        this app is in active development. ANY DATA ENTERED WILL BE LOST. this is a testing environment
+      </div>
       <MainNav />
       <Routes>
         <Route path="/" element={<Navigate to="/costumes" replace />} />
