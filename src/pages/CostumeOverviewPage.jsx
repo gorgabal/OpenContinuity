@@ -67,7 +67,7 @@ function CostumeOverviewPage() {
     try {
       await addCostume({
         name: 'New Costume',
-        character: '',
+        character: null,
         scene: '',
       });
     } catch (err) {

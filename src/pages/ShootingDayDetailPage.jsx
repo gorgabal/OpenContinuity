@@ -392,8 +392,7 @@ function ShootingDayDetailPage() {
               if (!character) return null
               
               const characterCostumes = costumes.filter(costume => 
-                costume.character === character.id || 
-                costume.character === character.name
+                costume.character === character.id
               )
               
               return (

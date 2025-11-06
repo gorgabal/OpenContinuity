@@ -51,7 +51,7 @@ function CharacterDetailPage() {
         
         // Available costumes are those not assigned to any character
         const unassignedCostumes = allCostumes.filter(costume => 
-          !costume.character || costume.character === ''
+          !costume.character || costume.character === null
         )
         setAvailableCostumes(unassignedCostumes)
         
@@ -132,7 +132,7 @@ function CharacterDetailPage() {
       ])
       
       setCostumes(updatedCostumes)
-      setAvailableCostumes(allCostumes.filter(costume => !costume.character || costume.character === ''))
+      setAvailableCostumes(allCostumes.filter(costume => !costume.character || costume.character === null))
       setShowAddCostumeModal(false)
     } catch (err) {
       console.error('Error assigning costume:', err)
@@ -151,7 +151,7 @@ function CharacterDetailPage() {
       ])
       
       setCostumes(updatedCostumes)
-      setAvailableCostumes(allCostumes.filter(costume => !costume.character || costume.character === ''))
+      setAvailableCostumes(allCostumes.filter(costume => !costume.character || costume.character === null))
     } catch (err) {
       console.error('Error unassigning costume:', err)
       setError(err.message)

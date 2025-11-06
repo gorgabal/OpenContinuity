@@ -35,8 +35,8 @@ const costumeSchema = {
       default: '',
     },
     character: {
-      type: 'string',
-      default: '',
+      type: ['string', 'null'],
+      ref: 'characters',
     },
     scenes: {
       type: 'array',
@@ -261,7 +261,7 @@ export async function addCostume(costumeData = {}) {
   const costume = {
     id: generateUUID(),
     name: costumeData.name || 'New Costume',
-    character: costumeData.character || '',
+    character: costumeData.character || null,
     scenes: costumeData.scenes || [],
     image: costumeData.image || 'https://placehold.co/400x300',
     photos: costumeData.photos || [],
@@ -319,6 +319,39 @@ export async function getCostumes$() {
 export async function getCostumeById$(id) {
   const db = await getDatabase();
   return db.costumes.findOne(id).$;
+}
+
+// Helper function to get costume with populated character reference
+export async function getCostumeWithCharacter(id) {
+  const db = await getDatabase();
+  const costume = await db.costumes.findOne(id).exec();
+  
+  if (!costume) {
+    return null;
+  }
+  
+  // Populate the character reference
+  if (costume.character) {
+    await costume.populate('character');
+  }
+  
+  return costume;
+}
+
+// Helper function to get all costumes with populated character references
+export async function getCostumesWithCharacters() {
+  const db = await getDatabase();
+  const costumes = await db.costumes.find().exec();
+  
+  // Populate character reference for each costume
+  return await Promise.all(
+    costumes.map(async (costume) => {
+      if (costume.character) {
+        await costume.populate('character');
+      }
+      return costume;
+    })
+  );
 }
 
 // Photo-related functions
@@ -455,43 +488,57 @@ export async function deleteCharacter(id) {
 // Character-Costume relationship functions
 export async function getCostumesByCharacterId(characterId) {
   const db = await getDatabase();
-  return await db.costumes.find({
+  const costumes = await db.costumes.find({
     selector: {
       character: characterId
     }
   }).exec();
+  
+  // Populate character reference for each costume
+  return await Promise.all(
+    costumes.map(async (costume) => {
+      await costume.populate('character');
+      return costume;
+    })
+  );
 }
 
 export async function assignCostumeToCharacter(costumeId, characterId) {
   const db = await getDatabase();
+  
+  // Verify character exists
+  const character = await db.characters.findOne(characterId).exec();
+  if (!character) {
+    throw new Error(`Character with id ${characterId} not found`);
+  }
+  
   const costume = await db.costumes.findOne(costumeId).exec();
-
-  if (costume) {
-    return await costume.update({
-      $set: {
-        character: characterId,
-        updatedAt: new Date().toISOString(),
-      },
-    });
+  if (!costume) {
+    throw new Error(`Costume with id ${costumeId} not found`);
   }
 
-  throw new Error(`Costume with id ${costumeId} not found`);
+  return await costume.update({
+    $set: {
+      character: characterId,
+      updatedAt: new Date().toISOString(),
+    },
+  });
 }
 
 export async function unassignCostumeFromCharacter(costumeId) {
   const db = await getDatabase();
   const costume = await db.costumes.findOne(costumeId).exec();
 
-  if (costume) {
-    return await costume.update({
-      $set: {
-        character: '',
-        updatedAt: new Date().toISOString(),
-      },
-    });
+  if (!costume) {
+    throw new Error(`Costume with id ${costumeId} not found`);
   }
 
-  throw new Error(`Costume with id ${costumeId} not found`);
+  return await costume.update({
+    $set: {
+      character: null,
+      updatedAt: new Date().toISOString(),
+    },
+  });
 }
 
 // Shooting Day functions

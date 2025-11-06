@@ -58,9 +58,11 @@ function CostumeDetailPage() {
         setAllScenes(scenes);
 
         // Get character if costume has one assigned
-        if (initialCostume && initialCostume.character) {
+        if (initialCostume && initialCostume.character && initialCostume.character !== null) {
           const characterData = await getCharacterById(initialCostume.character);
           setCharacter(characterData);
+        } else {
+          setCharacter(null);
         }
 
         // Get scenes if costume has any assigned
@@ -183,7 +185,7 @@ function CostumeDetailPage() {
   };
 
   const handleOpenEditDialog = () => {
-    setEditCharacterId(costume.character || '');
+    setEditCharacterId(costume.character || null);
     setEditSceneIds(costume.scenes || []);
     setIsEditDialogOpen(true);
   };
@@ -201,12 +203,12 @@ function CostumeDetailPage() {
   const handleSaveAssignments = async () => {
     try {
       await updateCostume(id, {
-        character: editCharacterId,
+        character: editCharacterId || null,
         scenes: editSceneIds
       });
 
       // Update the character display
-      if (editCharacterId) {
+      if (editCharacterId && editCharacterId !== null) {
         const characterData = await getCharacterById(editCharacterId);
         setCharacter(characterData);
       } else {
@@ -429,8 +431,8 @@ function CostumeDetailPage() {
               </Label>
               <Select
                 id="character-select"
-                value={editCharacterId}
-                onChange={(e) => setEditCharacterId(e.target.value)}
+                value={editCharacterId || ''}
+                onChange={(e) => setEditCharacterId(e.target.value || null)}
               >
                 <option value="">Not assigned</option>
                 {allCharacters.map((char) => (
