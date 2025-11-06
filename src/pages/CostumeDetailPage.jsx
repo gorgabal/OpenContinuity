@@ -7,7 +7,7 @@ import {
   getCostumeById$,
   updateCostume,
   addPhotoToCostume,
-  getPhotoUrl,
+  getAllPhotosForCostume,
   removePhotoFromCostume,
   getCharacterById,
   getSceneById,
@@ -149,22 +149,21 @@ function CostumeDetailPage() {
     }
   };
 
-  // Load photo URLs when costume photos change
+  // Load photo URLs when costume changes (attachments change)
   useEffect(() => {
     const loadPhotoUrls = async () => {
-      if (!costume?.photos || costume.photos.length === 0) {
+      if (!costume) {
         setPhotoUrls([]);
         return;
       }
 
       try {
-        const urls = await Promise.all(
-          costume.photos.map(async (photo) => {
-            const url = await getPhotoUrl(id, photo.id);
-            return { id: photo.id, url, filename: photo.filename };
-          })
-        );
-        setPhotoUrls(urls);
+        const photos = await getAllPhotosForCostume(id);
+        setPhotoUrls(photos.map(photo => ({
+          id: photo.id,
+          url: photo.url,
+          filename: photo.id // Use photo ID as filename for now
+        })));
       } catch (err) {
         console.error('Failed to load photo URLs:', err);
         setError(err.message);
@@ -172,7 +171,7 @@ function CostumeDetailPage() {
     };
 
     loadPhotoUrls();
-  }, [costume?.photos, id]);
+  }, [costume, id]);
 
   const handleNotesChange = async event => {
     const newNotes = event.target.value;

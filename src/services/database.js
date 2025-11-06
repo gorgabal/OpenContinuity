@@ -25,6 +25,7 @@ const costumeSchema = {
   version: 0,
   primaryKey: 'id',
   type: 'object',
+  attachments: {}, // Enable attachments for storing photos
   properties: {
     id: {
       type: 'string',
@@ -43,24 +44,6 @@ const costumeSchema = {
       ref: 'scenes',
       items: {
         type: 'string'
-      },
-      default: []
-    },
-    image: {
-      type: 'string',
-      default: 'https://placehold.co/400x300',
-    },
-    photos: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          id: { type: 'string' },
-          filename: { type: 'string' },
-          data: { type: 'string' },
-          createdAt: { type: 'string', format: 'date-time' },
-        },
-        required: ['id', 'filename', 'data', 'createdAt']
       },
       default: []
     },
@@ -267,8 +250,6 @@ export async function addCostume(costumeData = {}) {
     name: costumeData.name || 'New Costume',
     character: costumeData.character || null,
     scenes: costumeData.scenes || [],
-    image: costumeData.image || 'https://placehold.co/400x300',
-    photos: costumeData.photos || [],
     notes: costumeData.notes || '',
     createdAt: now,
     updatedAt: now,
@@ -361,39 +342,37 @@ export async function getCostumesWithCharacters() {
 // Photo-related functions
 export async function addPhotoToCostume(costumeId, photoFile) {
   const db = await getDatabase();
-  const costume = await db.costumes.findOne(costumeId).exec();
+  let costume = await db.costumes.findOne(costumeId).exec();
 
   if (!costume) {
     throw new Error(`Costume with id ${costumeId} not found`);
   }
 
-  // Convert file to base64
-  const base64Data = await new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.readAsDataURL(photoFile);
+  // Generate unique photo ID
+  const photoId = generateUUID();
+  
+  // Store photo as RxDB attachment (works offline)
+  await costume.putAttachment({
+    id: photoId,
+    data: photoFile,
+    type: photoFile.type || 'image/jpeg'
   });
 
-  // Create photo object
-  const photoId = generateUUID();
-  const filename = `photo_${Date.now()}.jpg`;
-  const newPhoto = {
-    id: photoId,
-    filename: filename,
-    data: base64Data,
-    createdAt: new Date().toISOString()
-  };
+  // Re-fetch the document to get the latest version with the attachment
+  costume = await db.costumes.findOne(costumeId).exec();
 
-  // Update the photos array
-  const currentPhotos = costume.photos || [];
+  // Update costume's updatedAt timestamp
   await costume.update({
     $set: {
-      photos: [...currentPhotos, newPhoto],
       updatedAt: new Date().toISOString()
     }
   });
 
-  return newPhoto;
+  // TODO: Supabase Integration
+  // When online, queue this photo for upload to Supabase Storage
+  // await queuePhotoForSync(costumeId, photoId, photoFile.name);
+
+  return { id: photoId, filename: photoFile.name, createdAt: new Date().toISOString() };
 }
 
 export async function getPhotoUrl(costumeId, photoId) {
@@ -404,13 +383,22 @@ export async function getPhotoUrl(costumeId, photoId) {
     throw new Error(`Costume with id ${costumeId} not found`);
   }
 
-  const photo = (costume.photos || []).find(p => p.id === photoId);
-  if (!photo) {
+  // Get attachment from RxDB
+  const attachment = costume.getAttachment(photoId);
+  if (!attachment) {
     throw new Error(`Photo with id ${photoId} not found`);
   }
 
-  // Return the base64 data URL directly
-  return photo.data;
+  // Get the blob data and create an object URL
+  const blob = await attachment.getData();
+  const url = URL.createObjectURL(blob);
+
+  // TODO: Supabase Integration
+  // If online and synced to cloud, could optionally fetch from Supabase Storage CDN
+  // const cloudUrl = await getCloudPhotoUrl(costumeId, photoId);
+  // return cloudUrl || url;
+
+  return url;
 }
 
 export async function removePhotoFromCostume(costumeId, photoId) {
@@ -421,15 +409,55 @@ export async function removePhotoFromCostume(costumeId, photoId) {
     throw new Error(`Costume with id ${costumeId} not found`);
   }
 
-  // Remove from photos array
-  const updatedPhotos = (costume.photos || []).filter(photo => photo.id !== photoId);
+  // Get attachment to verify it exists
+  const attachment = costume.getAttachment(photoId);
+  if (!attachment) {
+    throw new Error(`Photo with id ${photoId} not found`);
+  }
 
+  // Remove attachment from RxDB
+  await attachment.remove();
+
+  // Update costume's updatedAt timestamp
   await costume.update({
     $set: {
-      photos: updatedPhotos,
       updatedAt: new Date().toISOString()
     }
   });
+
+  // TODO: Supabase Integration
+  // When online, also delete from Supabase Storage
+  // await deletePhotoFromCloud(costumeId, photoId);
+}
+
+// Get all photos for a costume
+export async function getAllPhotosForCostume(costumeId) {
+  const db = await getDatabase();
+  const costume = await db.costumes.findOne(costumeId).exec();
+
+  if (!costume) {
+    throw new Error(`Costume with id ${costumeId} not found`);
+  }
+
+  // Get all attachments for this costume
+  const attachments = costume.allAttachments();
+  
+  // Map attachments to photo metadata
+  const photos = await Promise.all(
+    attachments.map(async (attachment) => {
+      const data = await attachment.getData();
+      return {
+        id: attachment.id,
+        type: attachment.type,
+        length: attachment.length,
+        digest: attachment.digest,
+        // Create blob URL for display
+        url: URL.createObjectURL(data)
+      };
+    })
+  );
+
+  return photos;
 }
 
 // Character functions
@@ -439,13 +467,12 @@ export async function addCharacter(characterData = {}) {
 
   const character = {
     id: generateUUID(),
+    createdAt: now,
+    updatedAt: now,
     name: characterData.name || 'New Character',
     description: characterData.description || '',
     actor: characterData.actor || '',
     notes: characterData.notes || '',
-    createdAt: now,
-    updatedAt: now,
-    ...characterData,
   };
 
   return await db.characters.insert(character);
@@ -552,12 +579,11 @@ export async function addShootingDay(shootingDayData = {}) {
 
   const shootingDay = {
     id: generateUUID(),
+    createdAt: now,
+    updatedAt: now,
     date: shootingDayData.date || new Date().toISOString().split('T')[0],
     location: shootingDayData.location || '',
     status: shootingDayData.status || 'Gepland',
-    createdAt: now,
-    updatedAt: now,
-    ...shootingDayData,
   };
 
   return await db.shootingdays.insert(shootingDay);
@@ -662,4 +688,89 @@ export async function ensureDefaultShootingDay() {
   }
 
   return existingShootingDays[0];
+}
+
+// ============================================================================
+// Supabase Integration Placeholders
+// ============================================================================
+// TODO: Implement these functions when setting up Supabase Storage
+
+/**
+ * Queue a photo for upload to Supabase Storage
+ * This should be called after successfully storing a photo as an RxDB attachment
+ * 
+ * @param {string} costumeId - The costume ID
+ * @param {string} photoId - The photo/attachment ID
+ * @param {string} filename - Original filename
+ */
+export async function queuePhotoForSync(costumeId, photoId, filename) {
+  // TODO: Implementation needed
+  // 1. Store sync queue entry in a local table/collection
+  // 2. Track sync status (pending, uploading, synced, failed)
+  // 3. Trigger background sync if online
+  console.log(`[Supabase] Photo queued for sync: ${photoId} from costume ${costumeId}`);
+}
+
+/**
+ * Sync all pending photos to Supabase Storage
+ * This should run in the background when the app comes online
+ */
+export async function syncPhotosToCloud() {
+  // TODO: Implementation needed
+  // 1. Check if online
+  // 2. Get all photos with sync status = 'pending'
+  // 3. For each photo:
+  //    a. Get attachment data from RxDB
+  //    b. Upload to Supabase Storage bucket
+  //    c. Store metadata in Supabase 'costume_photos' table
+  //    d. Update sync status to 'synced'
+  // 4. Handle errors and retry logic
+  console.log('[Supabase] Syncing photos to cloud...');
+}
+
+/**
+ * Get photo URL from Supabase Storage (when online)
+ * 
+ * @param {string} costumeId - The costume ID
+ * @param {string} photoId - The photo ID
+ * @returns {Promise<string|null>} Cloud URL or null if not synced
+ */
+export async function getCloudPhotoUrl(costumeId, photoId) {
+  // TODO: Implementation needed
+  // 1. Check if photo is synced to cloud
+  // 2. If synced, return Supabase Storage public URL or signed URL
+  // 3. If not synced, return null (fallback to local attachment)
+  console.log(`[Supabase] Getting cloud URL for photo ${photoId}`);
+  return null;
+}
+
+/**
+ * Delete photo from Supabase Storage
+ * 
+ * @param {string} costumeId - The costume ID
+ * @param {string} photoId - The photo ID
+ */
+export async function deletePhotoFromCloud(costumeId, photoId) {
+  // TODO: Implementation needed
+  // 1. Check if photo exists in cloud
+  // 2. Delete from Supabase Storage bucket
+  // 3. Delete metadata from 'costume_photos' table
+  // 4. Handle errors gracefully (photo may not exist in cloud yet)
+  console.log(`[Supabase] Deleting photo ${photoId} from cloud`);
+}
+
+/**
+ * Download photos from cloud to local device
+ * Useful for syncing photos to a new device or after reinstalling
+ * 
+ * @param {string} costumeId - The costume ID
+ */
+export async function downloadPhotosFromCloud(costumeId) {
+  // TODO: Implementation needed
+  // 1. Query 'costume_photos' table for all photos of this costume
+  // 2. For each photo not in local RxDB attachments:
+  //    a. Download from Supabase Storage
+  //    b. Store as RxDB attachment
+  //    c. Mark as synced
+  console.log(`[Supabase] Downloading photos for costume ${costumeId}`);
 }
