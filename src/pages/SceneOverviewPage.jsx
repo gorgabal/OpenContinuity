@@ -52,11 +52,11 @@ function SceneOverviewPage() {
 
       await createScene({
         sceneNumber: maxSceneNumber + 1,
-        shootingDayId: '',
+        shootingDay: null,
         location: '',
-        characterIds: [],
+        characters: [],
         time: '',
-        costumeIds: []
+        costumes: []
       })
     } catch (error) {
       alert('Error creating scene: ' + error.message)
@@ -103,7 +103,7 @@ function SceneOverviewPage() {
             </Card>
           ) : (
             scenes.map((scene) => {
-              const shootingDay = shootingDays.find(day => day.id === scene.shootingDayId)
+              const shootingDay = shootingDays.find(day => day.id === scene.shootingDay)
 
               return (
                 <div key={scene.id}>
@@ -121,9 +121,9 @@ function SceneOverviewPage() {
                             {scene.location && (
                               <li className="text-gray-700">Locatie: {scene.location}</li>
                             )}
-                            {scene.characterIds && scene.characterIds.length > 0 && (
+                            {scene.characters && scene.characters.length > 0 && (
                               <li className="text-gray-700">
-                                Personages: {scene.characterIds.map(charId => {
+                                Personages: {scene.characters.map(charId => {
                                   const character = characters.find(c => c.id === charId)
                                   return character ? character.name : null
                                 }).filter(name => name).join(', ')}
@@ -132,9 +132,9 @@ function SceneOverviewPage() {
                             {scene.time && (
                               <li className="text-gray-700">Tijd: {scene.time}</li>
                             )}
-                            {scene.costumeIds && scene.costumeIds.length > 0 && (
+                            {scene.costumes && scene.costumes.length > 0 && (
                               <li className="text-gray-700">
-                                Kostuums: {scene.costumeIds.map(costId => {
+                                Kostuums: {scene.costumes.map(costId => {
                                   const costume = costumes.find(c => c.id === costId)
                                   return costume ? costume.name : null
                                 }).filter(name => name).join(', ')}
@@ -172,7 +172,7 @@ function SceneOverviewPage() {
           ) : (
             shootingDays.map((day) => {
               const dayScenes = scenes
-                .filter(scene => scene.shootingDayId === day.id)
+                .filter(scene => scene.shootingDay === day.id)
                 .sort((a, b) => a.sceneNumber - b.sceneNumber)
 
               return (

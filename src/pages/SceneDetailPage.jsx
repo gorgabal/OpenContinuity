@@ -21,10 +21,10 @@ function SceneDetailPage() {
 
   const [editData, setEditData] = useState({
     sceneNumber: '',
-    shootingDayId: '',
+    shootingDay: '',
     location: '',
-    characterIds: [],
-    costumeIds: []
+    characters: [],
+    costumes: []
   })
 
   useEffect(() => {
@@ -51,15 +51,15 @@ function SceneDetailPage() {
         // Initialize edit data
         setEditData({
           sceneNumber: sceneData.sceneNumber || '',
-          shootingDayId: sceneData.shootingDayId || '',
+          shootingDay: sceneData.shootingDay || '',
           location: sceneData.location || '',
-          characterIds: sceneData.characterIds || [],
-          costumeIds: sceneData.costumeIds || []
+          characters: sceneData.characters || [],
+          costumes: sceneData.costumes || []
         })
 
         // Load shooting day if scene has one assigned
-        if (sceneData.shootingDayId) {
-          const shootingDayData = await getShootingDayById(sceneData.shootingDayId)
+        if (sceneData.shootingDay) {
+          const shootingDayData = await getShootingDayById(sceneData.shootingDay)
           setShootingDay(shootingDayData)
         }
 
@@ -93,8 +93,8 @@ function SceneDetailPage() {
       setScene(updatedScene)
 
       // Update shooting day if changed
-      if (updatedScene.shootingDayId) {
-        const shootingDayData = await getShootingDayById(updatedScene.shootingDayId)
+      if (updatedScene.shootingDay) {
+        const shootingDayData = await getShootingDayById(updatedScene.shootingDay)
         setShootingDay(shootingDayData)
       } else {
         setShootingDay(null)
@@ -114,10 +114,10 @@ function SceneDetailPage() {
     // Reset edit data to original values
     setEditData({
       sceneNumber: scene.sceneNumber || '',
-      shootingDayId: scene.shootingDayId || '',
+      shootingDay: scene.shootingDay || '',
       location: scene.location || '',
-      characterIds: scene.characterIds || [],
-      costumeIds: scene.costumeIds || []
+      characters: scene.characters || [],
+      costumes: scene.costumes || []
     })
     setIsEditing(false)
     setError(null)
@@ -126,18 +126,18 @@ function SceneDetailPage() {
   const handleCharacterToggle = (characterId) => {
     setEditData(prev => ({
       ...prev,
-      characterIds: prev.characterIds.includes(characterId)
-        ? prev.characterIds.filter(id => id !== characterId)
-        : [...prev.characterIds, characterId]
+      characters: prev.characters.includes(characterId)
+        ? prev.characters.filter(id => id !== characterId)
+        : [...prev.characters, characterId]
     }))
   }
 
   const handleCostumeToggle = (costumeId) => {
     setEditData(prev => ({
       ...prev,
-      costumeIds: prev.costumeIds.includes(costumeId)
-        ? prev.costumeIds.filter(id => id !== costumeId)
-        : [...prev.costumeIds, costumeId]
+      costumes: prev.costumes.includes(costumeId)
+        ? prev.costumes.filter(id => id !== costumeId)
+        : [...prev.costumes, costumeId]
     }))
   }
 
@@ -241,8 +241,8 @@ function SceneDetailPage() {
               {isEditing ? (
                 <Select
                   id="shootingDay"
-                  value={editData.shootingDayId}
-                  onChange={(e) => setEditData({ ...editData, shootingDayId: e.target.value })}
+                  value={editData.shootingDay}
+                  onChange={(e) => setEditData({ ...editData, shootingDay: e.target.value })}
                 >
                   <option value="">No shooting day assigned</option>
                   {shootingDays.map(day => (
@@ -278,11 +278,11 @@ function SceneDetailPage() {
             <div className="md:col-span-2">
               <Label value="Characters" />
               <div className="mt-2">
-                {editData.characterIds.length === 0 ? (
+                {editData.characters.length === 0 ? (
                   <p className="text-gray-500 mb-2">No characters selected</p>
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-2">
-                    {editData.characterIds.map(charId => {
+                    {editData.characters.map(charId => {
                       const character = characters.find(c => c.id === charId)
                       return character ? (
                         <Card key={charId} className="relative">
@@ -305,7 +305,7 @@ function SceneDetailPage() {
                 )}
                 {isEditing && (
                   <Button size="sm" onClick={() => setShowCharacterModal(true)}>
-                    {editData.characterIds.length === 0 ? 'Add Characters' : 'Add More Characters'}
+                    {editData.characters.length === 0 ? 'Add Characters' : 'Add More Characters'}
                   </Button>
                 )}
               </div>
@@ -314,11 +314,11 @@ function SceneDetailPage() {
             <div className="md:col-span-2">
               <Label value="Costumes" />
               <div className="mt-2">
-                {editData.costumeIds.length === 0 ? (
+                {editData.costumes.length === 0 ? (
                   <p className="text-gray-500 mb-2">No costumes selected</p>
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-2">
-                    {editData.costumeIds.map(costId => {
+                    {editData.costumes.map(costId => {
                       const costume = costumes.find(c => c.id === costId)
                       return costume ? (
                         <Card key={costId} className="relative">
@@ -348,12 +348,12 @@ function SceneDetailPage() {
                   <Button
                     size="sm"
                     onClick={() => setShowCostumeModal(true)}
-                    disabled={editData.characterIds.length === 0}
+                    disabled={editData.characters.length === 0}
                   >
-                    {editData.costumeIds.length === 0 ? 'Add Costumes' : 'Add More Costumes'}
+                    {editData.costumes.length === 0 ? 'Add Costumes' : 'Add More Costumes'}
                   </Button>
                 )}
-                {isEditing && editData.characterIds.length === 0 && (
+                {isEditing && editData.characters.length === 0 && (
                   <p className="text-sm text-gray-500 mt-1">Select characters first to add costumes</p>
                 )}
               </div>
@@ -380,7 +380,7 @@ function SceneDetailPage() {
             ) : (
               <div className="grid gap-3 max-h-96 overflow-y-auto">
                 {characters
-                  .filter(character => !editData.characterIds.includes(character.id))
+                  .filter(character => !editData.characters.includes(character.id))
                   .map((character) => (
                     <Card key={character.id} className="hover:bg-gray-50 transition-colors">
                       <div className="flex justify-between items-center">
@@ -422,11 +422,11 @@ function SceneDetailPage() {
               // Filter costumes: only show costumes assigned to selected characters
               const availableCostumes = costumes.filter(costume => {
                 // Check if costume is assigned to any of the selected characters
-                const isAssignedToSelectedCharacter = editData.characterIds.some(charId =>
+                const isAssignedToSelectedCharacter = editData.characters.some(charId =>
                   costume.character === charId
                 )
                 // Check if costume is not already selected
-                const isNotAlreadySelected = !editData.costumeIds.includes(costume.id)
+                const isNotAlreadySelected = !editData.costumes.includes(costume.id)
 
                 return isAssignedToSelectedCharacter && isNotAlreadySelected
               })

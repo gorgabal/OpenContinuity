@@ -40,6 +40,7 @@ const costumeSchema = {
     },
     scenes: {
       type: 'array',
+      ref: 'scenes',
       items: {
         type: 'string'
       },
@@ -160,16 +161,18 @@ const sceneSchema = {
     sceneNumber: {
       type: 'integer',
     },
-    shootingDayId: {
-      type: 'string',
-      default: '',
+    shootingDay: {
+      type: ['string', 'null'],
+      ref: 'shootingdays',
+      default: null,
     },
     location: {
       type: 'string',
       default: '',
     },
-    characterIds: {
+    characters: {
       type: 'array',
+      ref: 'characters',
       items: {
         type: 'string'
       },
@@ -179,8 +182,9 @@ const sceneSchema = {
       type: 'string',
       default: '',
     },
-    costumeIds: {
+    costumes: {
       type: 'array',
+      ref: 'costumes',
       items: {
         type: 'string'
       },
@@ -593,11 +597,11 @@ export async function addScene(sceneData = {}) {
   const scene = {
     id: generateUUID(),
     sceneNumber: sceneData.sceneNumber || 1,
-    shootingDayId: sceneData.shootingDayId || '',
+    shootingDay: sceneData.shootingDay || null,
     location: sceneData.location || '',
-    characterIds: sceneData.characterIds || [],
+    characters: sceneData.characters || [],
     time: sceneData.time || '',
-    costumeIds: sceneData.costumeIds || [],
+    costumes: sceneData.costumes || [],
     createdAt: now,
     updatedAt: now,
   };
@@ -632,11 +636,11 @@ export async function updateScene(id, updateData) {
   throw new Error(`Scene with id ${id} not found`);
 }
 
-export async function getScenesByShootingDayId(shootingDayId) {
+export async function getScenesByShootingDay(shootingDayId) {
   const db = await getDatabase();
   const scenes = await db.scenes.find({
     selector: {
-      shootingDayId: shootingDayId
+      shootingDay: shootingDayId
     }
   }).exec();
   return scenes.sort((a, b) => a.sceneNumber - b.sceneNumber);

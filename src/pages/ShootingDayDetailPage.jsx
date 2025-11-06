@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Card, Button, Spinner, TextInput, Label, Select, Modal } from 'flowbite-react'
-import { getShootingDayById, updateShootingDay, getScenesByShootingDayId, getCostumes, getScenes, updateScene, getCharacters } from '../services/database'
+import { getShootingDayById, updateShootingDay, getScenesByShootingDay, getCostumes, getScenes, updateScene, getCharacters } from '../services/database'
 
 function ShootingDayDetailPage() {
   const { id } = useParams()
@@ -32,7 +32,7 @@ function ShootingDayDetailPage() {
         setLoading(true)
         const [shootingDayData, assignedScenesData, allScenesData, charactersData, costumesData] = await Promise.all([
           getShootingDayById(id),
-          getScenesByShootingDayId(id),
+          getScenesByShootingDay(id),
           getScenes(),
           getCharacters(),
           getCostumes()
@@ -109,11 +109,11 @@ function ShootingDayDetailPage() {
 
   const handleAssignScene = async (sceneId) => {
     try {
-      await updateScene(sceneId, { shootingDayId: id })
+      await updateScene(sceneId, { shootingDay: id })
       
       // Refresh data
       const [updatedAssignedScenes, allScenesData] = await Promise.all([
-        getScenesByShootingDayId(id),
+        getScenesByShootingDay(id),
         getScenes()
       ])
       
@@ -134,11 +134,11 @@ function ShootingDayDetailPage() {
 
   const handleUnassignScene = async (sceneId) => {
     try {
-      await updateScene(sceneId, { shootingDayId: '' })
+      await updateScene(sceneId, { shootingDay: null })
       
       // Refresh data
       const [updatedAssignedScenes, allScenesData] = await Promise.all([
-        getScenesByShootingDayId(id),
+        getScenesByShootingDay(id),
         getScenes()
       ])
       
@@ -158,7 +158,7 @@ function ShootingDayDetailPage() {
   // Get unique character IDs from assigned scenes
   const getUniqueCharacterIds = () => {
     const allCharacterIds = assignedScenes
-      .flatMap(scene => scene.characterIds || [])
+      .flatMap(scene => scene.characters || [])
       .filter(id => id)
     
     return [...new Set(allCharacterIds)]
@@ -339,17 +339,17 @@ function ShootingDayDetailPage() {
                       {scene.location && (
                         <li className="text-gray-700">Locatie: {scene.location}</li>
                       )}
-                      {scene.characterIds && scene.characterIds.length > 0 && (
+                      {scene.characters && scene.characters.length > 0 && (
                         <li className="text-gray-700">
-                          Personages: {scene.characterIds.map(charId => {
+                          Personages: {scene.characters.map(charId => {
                             const character = characters.find(c => c.id === charId)
                             return character ? character.name : null
                           }).filter(name => name).join(', ')}
                         </li>
                       )}
-                      {scene.costumeIds && scene.costumeIds.length > 0 && (
+                      {scene.costumes && scene.costumes.length > 0 && (
                         <li className="text-gray-700">
-                          Kostuums: {scene.costumeIds.map(costId => {
+                          Kostuums: {scene.costumes.map(costId => {
                             const costume = costumes.find(c => c.id === costId)
                             return costume ? costume.name : null
                           }).filter(name => name).join(', ')}
@@ -464,9 +464,9 @@ function ShootingDayDetailPage() {
                         {scene.location && (
                           <p className="text-sm text-gray-600">Location: {scene.location}</p>
                         )}
-                        {scene.characterIds && scene.characterIds.length > 0 && (
+                        {scene.characters && scene.characters.length > 0 && (
                           <p className="text-sm text-gray-600">
-                            Characters: {scene.characterIds.map(charId => {
+                            Characters: {scene.characters.map(charId => {
                               const character = characters.find(c => c.id === charId)
                               return character ? character.name : null
                             }).filter(name => name).join(', ')}
