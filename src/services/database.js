@@ -7,11 +7,11 @@ import { RxDBAttachmentsPlugin } from 'rxdb/plugins/attachments';
 import { replicateAppwrite } from 'rxdb/plugins/replication-appwrite';
 import { Client } from 'appwrite';
 
-// Import schemas and collection operations
-import { costumeSchema, createCostumeOperations } from './db/collections/costumes.js';
-import { characterSchema, createCharacterOperations } from './db/collections/characters.js';
-import { sceneSchema, createSceneOperations } from './db/collections/scenes.js';
-import { shootingDaySchema, createShootingDayOperations } from './db/collections/shootingDays.js';
+// Import schemas
+import { costumeSchema, initCostumeOperations } from './db/collections/costumes.js';
+import { characterSchema, initCharacterOperations } from './db/collections/characters.js';
+import { sceneSchema, initSceneOperations } from './db/collections/scenes.js';
+import { shootingDaySchema, initShootingDayOperations } from './db/collections/shootingDays.js';
 
 let database = null;
 let initPromise = null;
@@ -58,6 +58,12 @@ export async function initDatabase() {
       },
     });
 
+    // Initialize collection operations with database getter
+    initCostumeOperations(getDatabase);
+    initCharacterOperations(getDatabase);
+    initSceneOperations(getDatabase);
+    initShootingDayOperations(getDatabase);
+
     return database;
   })();
 
@@ -71,55 +77,8 @@ export async function getDatabase() {
   return database;
 }
 
-// Initialize collection operations
-const costumeOps = createCostumeOperations(getDatabase);
-const characterOps = createCharacterOperations(getDatabase);
-const sceneOps = createSceneOperations(getDatabase);
-const shootingDayOps = createShootingDayOperations(getDatabase);
-
-// Re-export all costume operations
-export const {
-  addCostume,
-  getCostumes,
-  getCostumeById,
-  getCostumeById$,
-  getCostumes$,
-  updateCostume,
-  deleteCostume,
-  getCostumeWithCharacter,
-  getCostumesWithCharacters,
-  addPhotoToCostume,
-  getPhotoUrl,
-  removePhotoFromCostume,
-  getAllPhotosForCostume,
-  getCostumesByCharacterId,
-  assignCostumeToCharacter,
-  unassignCostumeFromCharacter
-} = costumeOps;
-
-// Re-export all character operations
-export const {
-  addCharacter,
-  getCharacters,
-  getCharacterById,
-  updateCharacter,
-  deleteCharacter
-} = characterOps;
-
-// Re-export all scene operations
-export const {
-  addScene,
-  getScenes,
-  getSceneById,
-  updateScene,
-  getScenesByShootingDay
-} = sceneOps;
-
-// Re-export all shooting day operations
-export const {
-  addShootingDay,
-  getShootingDays,
-  getShootingDayById,
-  updateShootingDay,
-  ensureDefaultShootingDay
-} = shootingDayOps;
+// Re-export all collection operations
+export * from './db/collections/costumes.js';
+export * from './db/collections/characters.js';
+export * from './db/collections/scenes.js';
+export * from './db/collections/shootingDays.js';

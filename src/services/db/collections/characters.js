@@ -37,25 +37,28 @@ export const characterSchema = {
   required: ['id', 'name', 'createdAt', 'updatedAt'],
 };
 
-export function createCharacterOperations(getDb) {
-  const crud = createCRUDOperations(getDb, 'characters', 'Character', {
-    name: 'New Character',
-    description: '',
-    actor: '',
-    notes: ''
-  });
+// This will be set by database.js after initialization
+let getDb = null;
 
-  return {
-    // Re-export CRUD operations
-    addCharacter: crud.add,
-    getCharacterById: crud.getById,
-    updateCharacter: crud.update,
-    deleteCharacter: crud.delete,
+export function initCharacterOperations(getDatabaseFn) {
+  getDb = getDatabaseFn;
+}
 
-    // Get all characters sorted by name
-    getCharacters: async () => {
-      const characters = await crud.getAll();
-      return characters.sort((a, b) => a.name.localeCompare(b.name));
-    }
-  };
+const crud = createCRUDOperations(() => getDb(), 'characters', 'Character', {
+  name: 'New Character',
+  description: '',
+  actor: '',
+  notes: ''
+});
+
+// Export CRUD operations directly
+export const addCharacter = crud.add;
+export const getCharacterById = crud.getById;
+export const updateCharacter = crud.update;
+export const deleteCharacter = crud.delete;
+
+// Get all characters sorted by name
+export async function getCharacters() {
+  const characters = await crud.getAll();
+  return characters.sort((a, b) => a.name.localeCompare(b.name));
 }

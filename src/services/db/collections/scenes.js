@@ -54,32 +54,35 @@ export const sceneSchema = {
   required: ['id', 'sceneNumber', 'createdAt', 'updatedAt'],
 };
 
-export function createSceneOperations(getDb) {
-  const crud = createCRUDOperations(getDb, 'scenes', 'Scene', {
-    sceneNumber: 1,
-    shootingDay: null,
-    location: '',
-    characters: [],
-    time: '',
-    costumes: []
-  });
+// This will be set by database.js after initialization
+let getDb = null;
 
-  return {
-    // Re-export CRUD operations
-    addScene: crud.add,
-    getSceneById: crud.getById,
-    updateScene: crud.update,
+export function initSceneOperations(getDatabaseFn) {
+  getDb = getDatabaseFn;
+}
 
-    // Get all scenes sorted by scene number
-    getScenes: async () => {
-      const scenes = await crud.getAll();
-      return scenes.sort((a, b) => a.sceneNumber - b.sceneNumber);
-    },
+const crud = createCRUDOperations(() => getDb(), 'scenes', 'Scene', {
+  sceneNumber: 1,
+  shootingDay: null,
+  location: '',
+  characters: [],
+  time: '',
+  costumes: []
+});
 
-    // Get scenes by shooting day
-    getScenesByShootingDay: async (shootingDayId) => {
-      const scenes = await crud.findByQuery({ shootingDay: shootingDayId });
-      return scenes.sort((a, b) => a.sceneNumber - b.sceneNumber);
-    }
-  };
+// Export CRUD operations directly
+export const addScene = crud.add;
+export const getSceneById = crud.getById;
+export const updateScene = crud.update;
+
+// Get all scenes sorted by scene number
+export async function getScenes() {
+  const scenes = await crud.getAll();
+  return scenes.sort((a, b) => a.sceneNumber - b.sceneNumber);
+}
+
+// Get scenes by shooting day
+export async function getScenesByShootingDay(shootingDayId) {
+  const scenes = await crud.findByQuery({ shootingDay: shootingDayId });
+  return scenes.sort((a, b) => a.sceneNumber - b.sceneNumber);
 }

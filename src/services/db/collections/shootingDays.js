@@ -34,34 +34,37 @@ export const shootingDaySchema = {
   required: ['id', 'date', 'createdAt', 'updatedAt'],
 };
 
-export function createShootingDayOperations(getDb) {
-  const crud = createCRUDOperations(getDb, 'shootingdays', 'Shooting day', {
-    date: new Date().toISOString().split('T')[0],
-    location: '',
-    status: 'Gepland'
-  });
+// This will be set by database.js after initialization
+let getDb = null;
 
-  return {
-    // Re-export CRUD operations
-    addShootingDay: crud.add,
-    getShootingDays: crud.getAll,
-    getShootingDayById: crud.getById,
-    updateShootingDay: crud.update,
+export function initShootingDayOperations(getDatabaseFn) {
+  getDb = getDatabaseFn;
+}
 
-    // Create a default shooting day if none exist
-    ensureDefaultShootingDay: async () => {
-      const db = await getDb();
-      const existingShootingDays = await db.shootingdays.find().exec();
+const crud = createCRUDOperations(() => getDb(), 'shootingdays', 'Shooting day', {
+  date: new Date().toISOString().split('T')[0],
+  location: '',
+  status: 'Gepland'
+});
 
-      if (existingShootingDays.length === 0) {
-        return await crud.add({
-          date: new Date().toISOString().split('T')[0],
-          location: 'Not specified',
-          status: 'Gepland'
-        });
-      }
+// Export CRUD operations directly
+export const addShootingDay = crud.add;
+export const getShootingDays = crud.getAll;
+export const getShootingDayById = crud.getById;
+export const updateShootingDay = crud.update;
 
-      return existingShootingDays[0];
-    }
-  };
+// Create a default shooting day if none exist
+export async function ensureDefaultShootingDay() {
+  const db = await getDb();
+  const existingShootingDays = await db.shootingdays.find().exec();
+
+  if (existingShootingDays.length === 0) {
+    return await crud.add({
+      date: new Date().toISOString().split('T')[0],
+      location: 'Not specified',
+      status: 'Gepland'
+    });
+  }
+
+  return existingShootingDays[0];
 }
