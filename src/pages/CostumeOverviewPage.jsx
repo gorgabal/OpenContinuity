@@ -67,8 +67,6 @@ function CostumeOverviewPage() {
     try {
       await addCostume({
         name: 'New Costume',
-        character: null,
-        scene: '',
       });
     } catch (err) {
       console.error('Failed to add costume:', err);
