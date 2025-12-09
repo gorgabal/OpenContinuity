@@ -70,12 +70,20 @@ export async function initDatabase() {
   return await initPromise;
 }
 
+let syncStarted = false;
+
 export async function getDatabase() {
   if (!database) {
     await initDatabase();
   }
 
-  // DatabaseSyncAppwrite();
+  // Start sync automatically on first database access
+  if (!syncStarted) {
+    syncStarted = true;
+    DatabaseSyncAppwrite().catch(err => {
+      console.error('Failed to start Appwrite sync:', err);
+    });
+  }
 
   return database;
 }
@@ -157,6 +165,11 @@ export async function DatabaseSyncAppwrite() {
 
   // Wait for initial sync
   await replicationState.awaitInitialReplication();
+
+  // Set up periodic re-sync every 60 seconds to catch any missed changes
+  setInterval(() => {
+    replicationState.reSync();
+  }, 60000);
 
   return replicationState;
 }
