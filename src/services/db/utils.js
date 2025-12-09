@@ -33,7 +33,9 @@ export async function getWithPopulated(db, collectionName, id, refFields = []) {
 }
 
 // Generic CRUD factory function
-export function createCRUDOperations(getDb, collectionName, entityName, defaultData = {}) {
+export function createCRUDOperations(getDb, collectionName, entityName, defaultData = {}, options = {}) {
+  const { useTimestamps = true } = options;
+
   return {
     add: async (data = {}) => {
       const db = await getDb();
@@ -41,7 +43,7 @@ export function createCRUDOperations(getDb, collectionName, entityName, defaultD
         id: generateUUID(),
         ...defaultData,
         ...data,
-        ...getTimestamps(true),
+        ...(useTimestamps ? getTimestamps(true) : {}),
       };
       return await db[collectionName].insert(document);
     },
@@ -72,8 +74,17 @@ export function createCRUDOperations(getDb, collectionName, entityName, defaultD
       if (!doc) {
         throw new Error(`${entityName} with id ${id} not found`);
       }
+
+      // Convert null values to empty strings for string fields
+      const cleanedData = { ...updateData };
+      Object.keys(cleanedData).forEach(key => {
+        if (cleanedData[key] === null) {
+          cleanedData[key] = '';
+        }
+      });
+
       return await doc.update({
-        $set: { ...updateData, ...getTimestamps(false) }
+        $set: { ...cleanedData, ...(useTimestamps ? getTimestamps(false) : {}) }
       });
     },
 

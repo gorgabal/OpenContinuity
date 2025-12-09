@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Card, Button, Spinner } from 'flowbite-react'
 import { Link } from 'react-router-dom'
-import { getCharacters, addCharacter, getCostumes } from '../services/database'
+import { getCharacters$, addCharacter, getCostumes } from '../services/database'
 
 function CharacterOverviewPage() {
   const [characters, setCharacters] = useState([])
@@ -10,24 +10,39 @@ function CharacterOverviewPage() {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true)
-        const [charactersData, costumesData] = await Promise.all([
-          getCharacters(),
-          getCostumes()
-        ])
-        setCharacters(charactersData)
-        setCostumes(costumesData)
-      } catch (err) {
-        console.error('Error loading characters:', err)
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    }
+    setLoading(true);
+    let subscription;
 
-    loadData()
+    const setupSubscription = async () => {
+      try {
+        // Subscribe to reactive query for characters
+        const characters$ = await getCharacters$();
+
+        subscription = characters$.subscribe(charactersData => {
+          setCharacters(charactersData);
+          setError(null);
+          setLoading(false);
+        });
+
+        // Load costumes (keeping as regular query for now)
+        const costumesData = await getCostumes();
+        setCostumes(costumesData);
+
+      } catch (err) {
+        console.error('Error loading characters:', err);
+        setError(err.message);
+        setLoading(false);
+      }
+    };
+
+    setupSubscription();
+
+    // Cleanup subscription on unmount
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
   }, [])
 
   const handleAddCharacter = async () => {
@@ -38,10 +53,7 @@ function CharacterOverviewPage() {
         actor: '',
         notes: ''
       })
-      
-      // Refresh the character list
-      const updatedCharacters = await getCharacters()
-      setCharacters(updatedCharacters)
+      // No need to manually refresh - reactive query will auto-update!
     } catch (error) {
       alert('Error creating character: ' + error.message)
     }
@@ -140,10 +152,6 @@ function CharacterOverviewPage() {
                         )}
                       </div>
                     )}
-
-                    <div className="text-xs text-gray-500 border-t pt-3">
-                      <p>Created: {new Date(character.createdAt).toLocaleDateString('nl-NL')}</p>
-                    </div>
                   </div>
                 </Card>
               </Link>

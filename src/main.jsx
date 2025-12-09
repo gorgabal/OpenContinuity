@@ -5,6 +5,7 @@ import './index.css';
 
 // import { Button } from "flowbite-react";
 import MainNav from './assets/components/MainNavigation.jsx';
+import { DatabaseSyncAppwrite } from './services/database.js'; // DEBUG: Remove this line
 import CostumeDetailPage from './pages/CostumeDetailPage.jsx';
 import SceneOverviewPage from './pages/SceneOverviewPage.jsx';
 import SceneDetailPage from './pages/SceneDetailPage.jsx';
@@ -30,6 +31,35 @@ createRoot(document.getElementById('root')).render(
       }}>
         this app is in active development. ANY DATA ENTERED WILL BE LOST. this is a testing environment
       </div>
+      {/* DEBUG: Remove this button */}
+      <div style={{
+        padding: '12px 20px',
+        textAlign: 'center',
+        backgroundColor: '#f3f4f6',
+        borderBottom: '1px solid #e5e7eb'
+      }}>
+        <button 
+          onClick={() => {
+            console.log('DatabaseSyncAppwrite button clicked');
+            DatabaseSyncAppwrite();
+          }}
+          style={{
+            backgroundColor: '#3b82f6',
+            color: 'white',
+            padding: '8px 16px',
+            borderRadius: '6px',
+            border: 'none',
+            cursor: 'pointer',
+            fontWeight: '600',
+            fontSize: '14px'
+          }}
+          onMouseOver={(e) => e.target.style.backgroundColor = '#2563eb'}
+          onMouseOut={(e) => e.target.style.backgroundColor = '#3b82f6'}
+        >
+          [DEBUG] Sync Database with Appwrite
+        </button>
+      </div>
+      {/* DEBUG: Remove until here */}
       <MainNav />
       <Routes>
         <Route path="/" element={<Navigate to="/costumes" replace />} />

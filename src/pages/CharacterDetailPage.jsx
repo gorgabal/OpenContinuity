@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Card, Button, Spinner, TextInput, Label, Textarea, Modal } from 'flowbite-react'
-import { 
-  getCharacterById, 
-  updateCharacter, 
-  deleteCharacter, 
-  getCostumesByCharacterId, 
-  assignCostumeToCharacter, 
+import {
+  getCharacterById$,
+  updateCharacter,
+  deleteCharacter,
+  getCostumesByCharacterId,
+  assignCostumeToCharacter,
   unassignCostumeFromCharacter,
-  getCostumes 
+  getCostumes
 } from '../services/database'
 
 function CharacterDetailPage() {
@@ -32,48 +32,66 @@ function CharacterDetailPage() {
   })
 
   useEffect(() => {
-    const loadData = async () => {
+    if (!id) return;
+
+    setLoading(true);
+    let subscription;
+
+    const setupSubscription = async () => {
       try {
-        setLoading(true)
-        const [characterData, characterCostumes, allCostumes] = await Promise.all([
-          getCharacterById(id),
+        // Subscribe to reactive query - this will auto-update when data changes
+        const character$ = await getCharacterById$(id);
+
+        subscription = character$.subscribe(characterData => {
+          if (!characterData) {
+            setError('Character not found');
+            setLoading(false);
+            return;
+          }
+
+          setCharacter(characterData);
+          setError(null);
+          setLoading(false);
+
+          // Initialize edit data only on first load
+          if (!editData.name) {
+            setEditData({
+              name: characterData.name || '',
+              description: characterData.description || '',
+              actor: characterData.actor || '',
+              notes: characterData.notes || ''
+            });
+          }
+        });
+
+        // Load costumes (keeping these as regular queries for now)
+        const [characterCostumes, allCostumes] = await Promise.all([
           getCostumesByCharacterId(id),
           getCostumes()
-        ])
-        
-        if (!characterData) {
-          setError('Character not found')
-          return
-        }
-        
-        setCharacter(characterData)
-        setCostumes(characterCostumes)
-        
-        // Available costumes are those not assigned to any character
-        const unassignedCostumes = allCostumes.filter(costume => 
-          !costume.character || costume.character === null
-        )
-        setAvailableCostumes(unassignedCostumes)
-        
-        // Initialize edit data
-        setEditData({
-          name: characterData.name || '',
-          description: characterData.description || '',
-          actor: characterData.actor || '',
-          notes: characterData.notes || ''
-        })
-        
-      } catch (err) {
-        console.error('Error loading character:', err)
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    }
+        ]);
 
-    if (id) {
-      loadData()
-    }
+        setCostumes(characterCostumes);
+
+        const unassignedCostumes = allCostumes.filter(costume =>
+          !costume.character || costume.character === null
+        );
+        setAvailableCostumes(unassignedCostumes);
+
+      } catch (err) {
+        console.error('Error loading character:', err);
+        setError(err.message);
+        setLoading(false);
+      }
+    };
+
+    setupSubscription();
+
+    // Cleanup subscription on unmount
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
   }, [id])
 
   const handleSave = async () => {
@@ -300,17 +318,6 @@ function CharacterDetailPage() {
           ) : (
             <p className="mt-1">{character.notes || 'No notes'}</p>
           )}
-        </div>
-
-        <div className="mt-8 text-sm text-gray-500 border-t pt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <span className="font-medium">Created:</span> {new Date(character.createdAt).toLocaleString('nl-NL')}
-            </div>
-            <div>
-              <span className="font-medium">Last updated:</span> {new Date(character.updatedAt).toLocaleString('nl-NL')}
-            </div>
-          </div>
         </div>
       </Card>
 

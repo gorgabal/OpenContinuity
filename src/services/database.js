@@ -74,6 +74,9 @@ export async function getDatabase() {
   if (!database) {
     await initDatabase();
   }
+
+  // DatabaseSyncAppwrite();
+
   return database;
 }
 
@@ -82,3 +85,78 @@ export * from './db/collections/costumes.js';
 export * from './db/collections/characters.js';
 export * from './db/collections/scenes.js';
 export * from './db/collections/shootingDays.js';
+
+export async function DatabaseSyncAppwrite() {
+  const db = await getDatabase();
+
+  const client = new Client()
+    .setEndpoint(import.meta.env.VITE_APPWRITE_ENDPOINT)
+    .setProject(import.meta.env.VITE_APPWRITE_PROJECT_ID);
+
+  const replicationState = replicateAppwrite({
+    replicationIdentifier: 'Character-replication',
+    client,
+    databaseId: import.meta.env.VITE_APPWRITE_DATABASE_ID,
+    collectionId: 'characters',
+    deletedField: 'deleted',
+    collection: db.characters,
+    pull: {
+      batchSize: 10,
+      modifier: (doc) => {
+        // Handle null/undefined fields
+        if (doc.notes === null || doc.notes === undefined) {
+          doc.notes = '';
+        }
+        if (doc.description === null || doc.description === undefined) {
+          doc.description = '';
+        }
+        if (doc.actor === null || doc.actor === undefined) {
+          doc.actor = '';
+        }
+        if (doc.scenes === null || doc.scenes === undefined) {
+          doc.scenes = [];
+        }
+
+        // Remove Appwrite system fields that aren't in our schema
+        delete doc.$id;
+        delete doc.$createdAt;
+        delete doc.$updatedAt;
+        delete doc.$permissions;
+        delete doc.$databaseId;
+        delete doc.$collectionId;
+        delete doc.createdAt;
+        delete doc.updatedAt;
+
+        return doc;
+      },
+    },
+    push: {
+      batchSize: 10,
+      modifier: (doc) => {
+        // Convert null fields to empty strings to match schema
+        const cleanDoc = { ...doc };
+        if (cleanDoc.notes === null || cleanDoc.notes === undefined) {
+          cleanDoc.notes = '';
+        }
+        if (cleanDoc.description === null || cleanDoc.description === undefined) {
+          cleanDoc.description = '';
+        }
+        if (cleanDoc.actor === null || cleanDoc.actor === undefined) {
+          cleanDoc.actor = '';
+        }
+
+        return cleanDoc;
+      },
+    },
+  });
+
+  // Add error handler
+  replicationState.error$.subscribe(error => {
+    console.error('[Sync] Replication error:', error);
+  });
+
+  // Wait for initial sync
+  await replicationState.awaitInitialReplication();
+
+  return replicationState;
+}

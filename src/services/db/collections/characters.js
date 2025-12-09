@@ -1,5 +1,6 @@
 // Character collection operations
 import { createCRUDOperations } from '../utils.js';
+import { map } from 'rxjs/operators';
 
 export const characterSchema = {
   version: 0,
@@ -25,16 +26,15 @@ export const characterSchema = {
       type: 'string',
       default: '',
     },
-    createdAt: {
-      type: 'string',
-      format: 'date-time',
-    },
-    updatedAt: {
-      type: 'string',
-      format: 'date-time',
+    scenes: {
+      type: 'array',
+      default: [],
+      items: {
+        type: 'string',
+      },
     },
   },
-  required: ['id', 'name', 'createdAt', 'updatedAt'],
+  required: ['id', 'name'],
 };
 
 // This will be set by database.js after initialization
@@ -48,12 +48,14 @@ const crud = createCRUDOperations(() => getDb(), 'characters', 'Character', {
   name: 'New Character',
   description: '',
   actor: '',
-  notes: ''
-});
+  notes: '',
+  scenes: []
+}, { useTimestamps: false });
 
 // Export CRUD operations directly
 export const addCharacter = crud.add;
 export const getCharacterById = crud.getById;
+export const getCharacterById$ = crud.getById$;
 export const updateCharacter = crud.update;
 export const deleteCharacter = crud.delete;
 
@@ -61,4 +63,13 @@ export const deleteCharacter = crud.delete;
 export async function getCharacters() {
   const characters = await crud.getAll();
   return characters.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Get all characters as observable (reactive)
+export async function getCharacters$() {
+  const observable = await crud.getAll$();
+  // Transform the observable to sort by name
+  return observable.pipe(
+    map(characters => characters.sort((a, b) => a.name.localeCompare(b.name)))
+  );
 }
