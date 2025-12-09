@@ -52,16 +52,6 @@ function CharacterDetailPage() {
           setCharacter(characterData);
           setError(null);
           setLoading(false);
-
-          // Initialize edit data only on first load
-          if (!editData.name) {
-            setEditData({
-              name: characterData.name || '',
-              description: characterData.description || '',
-              actor: characterData.actor || '',
-              notes: characterData.notes || ''
-            });
-          }
         });
 
         // Load costumes (keeping these as regular queries for now)
@@ -94,19 +84,28 @@ function CharacterDetailPage() {
     };
   }, [id])
 
+  // Sync editData with character when NOT editing
+  useEffect(() => {
+    if (character && !isEditing) {
+      setEditData({
+        name: character.name || '',
+        description: character.description || '',
+        actor: character.actor || '',
+        notes: character.notes || ''
+      });
+    }
+  }, [character, isEditing]);
+
   const handleSave = async () => {
     try {
       setSaving(true)
       setError(null)
-      
+
       await updateCharacter(id, editData)
-      
-      // Refresh character data
-      const updatedCharacter = await getCharacterById(id)
-      setCharacter(updatedCharacter)
-      
+
+      // Character data will auto-update via reactive subscription
       setIsEditing(false)
-      
+
     } catch (err) {
       console.error('Error saving character:', err)
       setError(err.message)

@@ -12,6 +12,7 @@ import { costumeSchema, initCostumeOperations } from './db/collections/costumes.
 import { characterSchema, initCharacterOperations } from './db/collections/characters.js';
 import { sceneSchema, initSceneOperations } from './db/collections/scenes.js';
 import { shootingDaySchema, initShootingDayOperations } from './db/collections/shootingDays.js';
+import { createConflictHandler } from './db/conflictHandler.js';
 
 let database = null;
 let initPromise = null;
@@ -46,15 +47,19 @@ export async function initDatabase() {
     await database.addCollections({
       costumes: {
         schema: costumeSchema,
+        conflictHandler: createConflictHandler(),
       },
       shootingdays: {
         schema: shootingDaySchema,
+        conflictHandler: createConflictHandler(),
       },
       scenes: {
         schema: sceneSchema,
+        conflictHandler: createConflictHandler(),
       },
       characters: {
         schema: characterSchema,
+        conflictHandler: createConflictHandler(),
       },
     });
 
@@ -101,6 +106,8 @@ export async function DatabaseSyncAppwrite() {
     .setEndpoint(import.meta.env.VITE_APPWRITE_ENDPOINT)
     .setProject(import.meta.env.VITE_APPWRITE_PROJECT_ID);
 
+  console.log('[Sync] Setting up Appwrite replication...');
+
   const replicationState = replicateAppwrite({
     replicationIdentifier: 'Character-replication',
     client,
@@ -108,6 +115,10 @@ export async function DatabaseSyncAppwrite() {
     collectionId: 'characters',
     deletedField: 'deleted',
     collection: db.characters,
+    live: true,
+    retryTime: 5000,
+    waitForLeadership: false, // Allow replication in all tabs
+    autoStart: true, // Explicitly enable auto-start
     pull: {
       batchSize: 10,
       modifier: (doc) => {
@@ -125,15 +136,21 @@ export async function DatabaseSyncAppwrite() {
           doc.scenes = [];
         }
 
-        // Remove Appwrite system fields that aren't in our schema
+        // Map Appwrite system timestamps to RxDB-compatible field names
+        if (doc.$updatedAt) {
+          doc.updatedAt = doc.$updatedAt;
+          delete doc.$updatedAt;
+        }
+        if (doc.$createdAt) {
+          doc.createdAt = doc.$createdAt;
+          delete doc.$createdAt;
+        }
+
+        // Remove other Appwrite system fields that aren't in our schema
         delete doc.$id;
-        delete doc.$createdAt;
-        delete doc.$updatedAt;
         delete doc.$permissions;
         delete doc.$databaseId;
         delete doc.$collectionId;
-        delete doc.createdAt;
-        delete doc.updatedAt;
 
         return doc;
       },
@@ -158,16 +175,57 @@ export async function DatabaseSyncAppwrite() {
     },
   });
 
-  // Add error handler
+  // Monitor replication errors
   replicationState.error$.subscribe(error => {
     console.error('[Sync] Replication error:', error);
+    if (error.parameters) {
+      console.error('[Sync] Error parameters:', JSON.stringify(error.parameters, null, 2));
+    }
+  });
+
+  // Monitor push attempts and success
+  replicationState.sent$.subscribe(data => {
+    console.log('[Sync] ✅ Push successful:', data.documents.length, 'document(s)');
+    data.documents.forEach(doc => {
+      console.log('[Sync]   - Pushed:', doc.id, doc.name);
+    });
+  });
+
+  // Monitor pull success
+  replicationState.received$.subscribe(data => {
+    console.log('[Sync] ⬇️  Pull received:', data.documents.length, 'document(s)');
+  });
+
+  // Monitor active state
+  replicationState.active$.subscribe(active => {
+    console.log('[Sync] Replication active:', active);
+  });
+
+  // Monitor when replication is canceled
+  replicationState.canceled$.subscribe(canceled => {
+    if (canceled) {
+      console.warn('[Sync] Replication canceled!');
+    }
   });
 
   // Wait for initial sync
-  await replicationState.awaitInitialReplication();
+  console.log('[Sync] Waiting for initial replication...');
+  try {
+    await replicationState.awaitInitialReplication();
+    console.log('[Sync] ✅ Initial replication complete!');
+  } catch (error) {
+    console.error('[Sync] ❌ Initial replication failed:', error);
+    // Continue anyway - live replication might still work
+  }
+
+  // Explicitly start replication to ensure it's running
+  console.log('[Sync] Starting replication...');
+  await replicationState.start();
+  console.log('[Sync] Replication started!');
 
   // Set up periodic re-sync every 60 seconds to catch any missed changes
   setInterval(() => {
+    console.log('[Sync] Running periodic reSync...');
     replicationState.reSync();
   }, 60000);
 
