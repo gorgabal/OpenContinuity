@@ -33,6 +33,12 @@ export const characterSchema = {
         type: 'string',
       },
     },
+    createdAt: {
+      type: 'number',
+    },
+    updatedAt: {
+      type: 'number',
+    },
   },
   required: ['id', 'name'],
 };
@@ -50,7 +56,7 @@ const crud = createCRUDOperations(() => getDb(), 'characters', 'Character', {
   actor: '',
   notes: '',
   scenes: []
-}, { useTimestamps: false });
+}, { useTimestamps: true });
 
 // Export CRUD operations directly
 export const addCharacter = crud.add;

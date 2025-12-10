@@ -20,15 +20,6 @@ export function createConflictHandler() {
         documentA.actor === documentB.actor &&
         documentA.notes === documentB.notes;
 
-      console.log('[Conflict] isEqual check:', {
-        docA_id: documentA.id,
-        docA_name: documentA.name,
-        docA_updated: documentA.updatedAt,
-        docB_id: documentB.id,
-        docB_name: documentB.name,
-        docB_updated: documentB.updatedAt,
-        result: isEqual
-      });
       return isEqual;
     },
 
@@ -39,41 +30,35 @@ export function createConflictHandler() {
       const local = input.newDocumentState;
       const remote = input.realMasterState;
 
-      console.log('[Conflict] Resolving conflict:', {
-        local_id: local.id,
-        local_name: local.name,
-        local_updated: local.updatedAt,
-        local_deleted: local._deleted || local.deleted,
-        remote_id: remote.id,
-        remote_name: remote.name,
-        remote_updated: remote.updatedAt,
-        remote_deleted: remote._deleted || remote.deleted
-      });
-
-      // If either side is deleted, prefer deletion (check both _deleted and deleted)
-      if (local._deleted || local.deleted || remote._deleted || remote.deleted) {
-        console.log('[Conflict] Resolution: remote wins (deletion)');
-        return remote; // Let remote deletion state win
+      // ALWAYS prefer local deletion (offline-first)
+      if (local._deleted || local.deleted) {
+        return local; // Local delete wins
+      }
+      
+      // If only remote is deleted, accept it
+      if (remote._deleted || remote.deleted) {
+        return remote;
       }
 
-      // Compare timestamps if available
+      // Compare timestamps for non-deletion conflicts
       if (local.updatedAt && remote.updatedAt) {
-        const localTime = new Date(local.updatedAt).getTime();
-        const remoteTime = new Date(remote.updatedAt).getTime();
+        const localTime = typeof local.updatedAt === 'number' 
+          ? local.updatedAt 
+          : new Date(local.updatedAt).getTime();
+        const remoteTime = typeof remote.updatedAt === 'number'
+          ? remote.updatedAt
+          : new Date(remote.updatedAt).getTime();
 
         // Prefer newer version
         if (localTime > remoteTime) {
-          console.log('[Conflict] Resolution: local wins (newer timestamp)');
           return local; // Local is newer, keep it
         } else if (remoteTime > localTime) {
-          console.log('[Conflict] Resolution: remote wins (newer timestamp)');
           return remote; // Remote is newer, accept it
         }
       }
 
       // If no timestamps or equal, prefer local (offline-first)
       // This ensures user's changes are never lost
-      console.log('[Conflict] Resolution: local wins (default/no timestamps)');
       return local;
     }
   };

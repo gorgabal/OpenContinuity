@@ -15,7 +15,7 @@ export function generateUUID() {
 
 // Utility: Get timestamps for create/update operations
 export const getTimestamps = (isNew = true) => {
-  const now = new Date().toISOString();
+  const now = Date.now();
   return isNew ? { createdAt: now, updatedAt: now } : { updatedAt: now };
 };
 
@@ -75,11 +75,11 @@ export function createCRUDOperations(getDb, collectionName, entityName, defaultD
         throw new Error(`${entityName} with id ${id} not found`);
       }
 
-      // Convert null values to empty strings for string fields
-      const cleanedData = { ...updateData };
-      Object.keys(cleanedData).forEach(key => {
-        if (cleanedData[key] === null) {
-          cleanedData[key] = '';
+      // Remove null and undefined values to let defaults or required validation handle them
+      const cleanedData = {};
+      Object.keys(updateData).forEach(key => {
+        if (updateData[key] !== null && updateData[key] !== undefined) {
+          cleanedData[key] = updateData[key];
         }
       });
 

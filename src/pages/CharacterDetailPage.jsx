@@ -87,11 +87,19 @@ function CharacterDetailPage() {
   // Sync editData with character when NOT editing
   useEffect(() => {
     if (character && !isEditing) {
-      setEditData({
-        name: character.name || '',
-        description: character.description || '',
-        actor: character.actor || '',
-        notes: character.notes || ''
+      setEditData(prev => {
+        const newData = {
+          name: character.name || '',
+          description: character.description || '',
+          actor: character.actor || '',
+          notes: character.notes || ''
+        };
+        
+        // Only update if data actually changed
+        if (JSON.stringify(prev) !== JSON.stringify(newData)) {
+          return newData;
+        }
+        return prev;
       });
     }
   }, [character, isEditing]);
@@ -101,9 +109,19 @@ function CharacterDetailPage() {
       setSaving(true)
       setError(null)
 
-      await updateCharacter(id, editData)
+      const updatedData = {
+        ...editData,
+        updatedAt: Date.now()
+      };
 
-      // Character data will auto-update via reactive subscription
+      await updateCharacter(id, updatedData)
+
+      // Update local state immediately - don't wait for subscription
+      setCharacter(prev => ({
+        ...prev,
+        ...updatedData
+      }));
+
       setIsEditing(false)
 
     } catch (err) {

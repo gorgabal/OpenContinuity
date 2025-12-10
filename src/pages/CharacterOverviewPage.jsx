@@ -47,11 +47,14 @@ function CharacterOverviewPage() {
 
   const handleAddCharacter = async () => {
     try {
+      const now = Date.now();
       await addCharacter({
         name: 'New Character',
         description: '',
         actor: '',
-        notes: ''
+        notes: '',
+        createdAt: now,
+        updatedAt: now
       })
       // No need to manually refresh - reactive query will auto-update!
     } catch (error) {
