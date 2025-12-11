@@ -111,6 +111,7 @@ export async function DatabaseSyncAppwrite() {
     collectionId: 'characters',
     deletedField: 'deleted',
     collection: db.characters,
+    waitForLeadership: true, // Only leader tab syncs (prevents duplicate requests)
     pull: {
       batchSize: 10,
       modifier: (doc) => {

@@ -10,15 +10,12 @@ export function createConflictHandler() {
      * Checks if two document states are equal
      */
     isEqual(documentA, documentB) {
-      // Compare documents based on content and timestamp
+      // Compare documents based on deleted status and timestamp
       // Never return true if timestamps differ
       const isEqual =
         documentA.id === documentB.id &&
-        documentA.name === documentB.name &&
         documentA.updatedAt === documentB.updatedAt &&
-        documentA.description === documentB.description &&
-        documentA.actor === documentB.actor &&
-        documentA.notes === documentB.notes;
+        documentA._deleted === documentB._deleted;
 
       return isEqual;
     },
