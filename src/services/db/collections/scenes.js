@@ -43,12 +43,10 @@ export const sceneSchema = {
       default: []
     },
     createdAt: {
-      type: 'string',
-      format: 'date-time',
+      type: 'number',
     },
     updatedAt: {
-      type: 'string',
-      format: 'date-time',
+      type: 'number',
     },
   },
   required: ['id', 'sceneNumber', 'createdAt', 'updatedAt'],
@@ -68,7 +66,7 @@ const crud = createCRUDOperations(() => getDb(), 'scenes', 'Scene', {
   characters: [],
   time: '',
   costumes: []
-});
+}, { useTimestamps: true });
 
 // Export CRUD operations directly
 export const addScene = crud.add;

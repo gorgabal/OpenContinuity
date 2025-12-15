@@ -32,12 +32,10 @@ export const costumeSchema = {
       default: '',
     },
     createdAt: {
-      type: 'string',
-      format: 'date-time',
+      type: 'number',
     },
     updatedAt: {
-      type: 'string',
-      format: 'date-time',
+      type: 'number',
     },
   },
   required: ['id', 'createdAt', 'updatedAt'],
@@ -55,7 +53,7 @@ const crud = createCRUDOperations(() => getDb(), 'costumes', 'Costume', {
   character: null,
   scenes: [],
   notes: ''
-});
+}, { useTimestamps: true });
 
 // Export CRUD operations directly
 export const addCostume = crud.add;

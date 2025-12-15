@@ -23,12 +23,10 @@ export const shootingDaySchema = {
       default: 'Gepland',
     },
     createdAt: {
-      type: 'string',
-      format: 'date-time',
+      type: 'number',
     },
     updatedAt: {
-      type: 'string',
-      format: 'date-time',
+      type: 'number',
     },
   },
   required: ['id', 'date', 'createdAt', 'updatedAt'],
@@ -45,7 +43,7 @@ const crud = createCRUDOperations(() => getDb(), 'shootingdays', 'Shooting day',
   date: new Date().toISOString().split('T')[0],
   location: '',
   status: 'Gepland'
-});
+}, { useTimestamps: true });
 
 // Export CRUD operations directly
 export const addShootingDay = crud.add;
