@@ -2,19 +2,12 @@ import { useState, useEffect } from 'react';
 import { Card, Button, Spinner } from 'flowbite-react';
 import { Link } from 'react-router-dom';
 import {
-  initDatabase,
+  getDatabase,
   getCostumes,
   getCostumes$,
   addCostume,
   getCharacters,
 } from '../services/database.js';
-
-/*
-Should contain the following:
-  - list of scenes
-  - Name of character
-  - Image of costume
-*/
 
 function CostumeOverviewPage() {
   const [costumes, setCostumes] = useState([]);
@@ -29,8 +22,7 @@ function CostumeOverviewPage() {
       try {
         setIsLoading(true);
 
-        // Initialize database
-        await initDatabase();
+        await getDatabase();
 
         // Get initial costumes and characters
         const initialCostumes = await getCostumes();
@@ -117,7 +109,7 @@ function CostumeOverviewPage() {
               : null;
 
             // Find the character name by ID
-            const character = characters && characters.length > 0 
+            const character = characters && characters.length > 0
               ? characters.find(c => c.id === costume.character)
               : null;
             const characterName = character ? character.name : 'Not assigned';

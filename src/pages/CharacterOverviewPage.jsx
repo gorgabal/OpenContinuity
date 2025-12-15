@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Card, Button, Spinner } from 'flowbite-react'
 import { Link } from 'react-router-dom'
-import { getCharacters$, addCharacter, getCostumes } from '../services/database'
+import { getCharacters$, addCharacter, getCostumes, getDatabase } from '../services/database'
 
 function CharacterOverviewPage() {
   const [characters, setCharacters] = useState([])
@@ -15,6 +15,9 @@ function CharacterOverviewPage() {
 
     const setupSubscription = async () => {
       try {
+
+        await getDatabase();
+
         // Subscribe to reactive query for characters
         const characters$ = await getCharacters$();
 
@@ -100,16 +103,16 @@ function CharacterOverviewPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {characters.map((character) => {
             // Get costumes for this character
-            const characterCostumes = costumes.filter(costume => 
+            const characterCostumes = costumes.filter(costume =>
               costume.character === character.id
             )
-            
+
             return (
               <Link key={character.id} to={`/characters/${character.id}`}>
                 <Card className="hover:bg-gray-50 transition-colors">
                   <div className="space-y-4">
                     <h2 className="text-xl font-bold text-gray-900">{character.name}</h2>
-                    
+
                     {character.actor && (
                       <div>
                         <span className="text-sm font-medium text-gray-600">Actor: </span>
@@ -136,10 +139,10 @@ function CharacterOverviewPage() {
                             const lastPhoto = costume.photos && costume.photos.length > 0
                               ? costume.photos[costume.photos.length - 1]
                               : null;
-                            
+
                             return (
                               <div key={costume.id} className="aspect-square">
-                                <img 
+                                <img
                                   src={lastPhoto ? lastPhoto.data : 'https://placehold.co/100x100'}
                                   alt={costume.name}
                                   className="w-full h-full object-cover rounded"

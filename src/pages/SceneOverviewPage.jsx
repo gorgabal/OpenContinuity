@@ -3,7 +3,7 @@ import { Card, Button } from 'flowbite-react'
 import { Link } from 'react-router-dom'
 import { useScenes } from '../hooks/useScenes'
 import { useShootingDays } from '../hooks/useShootingDays'
-import { getCharacters, getCostumes } from '../services/database'
+import { getCharacters, getCostumes, getDatabase } from '../services/database'
 
 function SceneOverviewPage() {
   const { scenes, loading, error, createScene } = useScenes()
@@ -13,6 +13,8 @@ function SceneOverviewPage() {
 
   useEffect(() => {
     const loadData = async () => {
+      await getDatabase();
+
       try {
         const [charactersData, costumesData] = await Promise.all([
           getCharacters(),
