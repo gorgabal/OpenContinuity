@@ -4,12 +4,11 @@ import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
 import { wrappedValidateAjvStorage } from 'rxdb/plugins/validate-ajv';
 import { RxDBUpdatePlugin } from 'rxdb/plugins/update';
 import { RxDBAttachmentsPlugin } from 'rxdb/plugins/attachments';
-import { replicateAppwrite } from 'rxdb/plugins/replication-appwrite';
 import { Client } from 'appwrite';
 
-// Import schemas
-import { costumeSchema, initCostumeOperations } from './db/collections/costumes.js';
-import { characterSchema, initCharacterOperations } from './db/collections/characters.js';
+// Import schemas and replication functions
+import { costumeSchema, initCostumeOperations, createCostumeReplication } from './db/collections/costumes.js';
+import { characterSchema, initCharacterOperations, createCharacterReplication } from './db/collections/characters.js';
 import { sceneSchema, initSceneOperations } from './db/collections/scenes.js';
 import { shootingDaySchema, initShootingDayOperations } from './db/collections/shootingDays.js';
 import { createConflictHandler } from './db/conflictHandler.js';
@@ -105,151 +104,20 @@ export async function DatabaseSyncAppwrite() {
     .setEndpoint(import.meta.env.VITE_APPWRITE_ENDPOINT)
     .setProject(import.meta.env.VITE_APPWRITE_PROJECT_ID);
 
-  const charactersReplicationState = replicateAppwrite({
-    replicationIdentifier: 'Character-replication',
+  const databaseId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+
+  // Create replication states using collection-specific configurations
+  const charactersReplicationState = createCharacterReplication(
+    db.characters,
     client,
-    databaseId: import.meta.env.VITE_APPWRITE_DATABASE_ID,
-    collectionId: 'characters',
-    deletedField: 'deleted',
-    collection: db.characters,
-    waitForLeadership: true, // Only leader tab syncs (prevents duplicate requests)
-    pull: {
-      batchSize: 10,
-      modifier: (doc) => {
-        // Add timestamps if missing (coming from Appwrite)
-        const now = Date.now();
-        return {
-          ...doc,
-          createdAt: (doc.createdAt !== null && doc.createdAt !== undefined) ? doc.createdAt : now,
-          updatedAt: (doc.updatedAt !== null && doc.updatedAt !== undefined) ? doc.updatedAt : now,
-        };
-      }
-    },
-    push: {
-      batchSize: 10,
-      modifier: (doc) => {
-        // Add timestamps if missing or null (going to Appwrite)
-        const now = Date.now();
-        const modified = {
-          ...doc,
-          createdAt: (doc.createdAt !== null && doc.createdAt !== undefined) ? doc.createdAt : now,
-          updatedAt: (doc.updatedAt !== null && doc.updatedAt !== undefined) ? doc.updatedAt : now,
-        };
-        console.log('[Characters Push Modifier] Before:', { createdAt: doc.createdAt, updatedAt: doc.updatedAt });
-        console.log('[Characters Push Modifier] After:', { createdAt: modified.createdAt, updatedAt: modified.updatedAt });
-        return modified;
-      }
-    },
-  });
+    databaseId
+  );
 
-  // Monitor replication errors for characters
-  charactersReplicationState.error$.subscribe(error => {
-    console.error('[Characters Sync] Replication error:', error);
-    if (error.parameters) {
-      console.error('[Characters Sync] Error parameters:', JSON.stringify(error.parameters, null, 2));
-    }
-  });
-
-  const costumesReplicationState = replicateAppwrite({
-    replicationIdentifier: 'Costume-replication',
+  const costumesReplicationState = createCostumeReplication(
+    db.costumes,
     client,
-    databaseId: import.meta.env.VITE_APPWRITE_DATABASE_ID,
-    collectionId: 'costumes',
-    deletedField: 'deleted',
-    collection: db.costumes,
-    waitForLeadership: true, // Only leader tab syncs (prevents duplicate requests)
-    pull: {
-      batchSize: 10,
-      modifier: (doc) => {
-        // Add timestamps if missing (coming from Appwrite)
-        const now = Date.now();
-
-        // Handle Appwrite relationships - extract IDs if nested objects, otherwise keep as-is
-        const character = typeof doc.character === 'object' && doc.character !== null
-          ? doc.character.$id || null
-          : doc.character;
-
-        const scenes = Array.isArray(doc.scenes) && doc.scenes.length > 0 && typeof doc.scenes[0] === 'object'
-          ? doc.scenes.map(s => s.$id || s)
-          : doc.scenes;
-
-        const projects = typeof doc.projects === 'object' && doc.projects !== null
-          ? doc.projects.$id || null
-          : doc.projects;
-
-        // Convert Appwrite attachments JSON string back to RxDB _attachments object
-        let _attachments = {};
-        if (doc.attachments && typeof doc.attachments === 'string') {
-          try {
-            _attachments = JSON.parse(doc.attachments);
-          } catch (e) {
-            console.warn('[Costumes Pull] Failed to parse attachments JSON:', e);
-            _attachments = {};
-          }
-        }
-
-        // Remove the Appwrite attachments field and use the converted _attachments
-        const { attachments, ...docWithoutAttachments } = doc;
-
-        return {
-          ...docWithoutAttachments,
-          character,
-          scenes,
-          projects,
-          _attachments,
-          createdAt: (doc.createdAt !== null && doc.createdAt !== undefined) ? doc.createdAt : now,
-          updatedAt: (doc.updatedAt !== null && doc.updatedAt !== undefined) ? doc.updatedAt : now,
-        };
-      }
-    },
-    push: {
-      batchSize: 10,
-      modifier: (doc) => {
-        debugger;
-        console.log('[Costumes Push Modifier] Input doc:', doc);
-
-        // Add timestamps if missing or null (going to Appwrite)
-        const now = Date.now();
-
-        // Convert RxDB _attachments object to JSON string for Appwrite
-        let attachments = '';
-        if (doc._attachments && typeof doc._attachments === 'object') {
-          try {
-            attachments = JSON.stringify(doc._attachments);
-          } catch (e) {
-            console.warn('[Costumes Push] Failed to stringify _attachments:', e);
-            attachments = '{}';
-          }
-        }
-
-        // Explicitly only send fields that Appwrite expects
-        // This filters out RxDB internal fields like _deleted, _rev, _meta, _attachments
-        const cleanDoc = {
-          id: doc.id,
-          name: doc.name || '',
-          character: doc.character || null,
-          scenes: doc.scenes || [],
-          projects: doc.projects || null,
-          notes: doc.notes || '',
-          attachments: attachments,
-          createdAt: (doc.createdAt !== null && doc.createdAt !== undefined) ? doc.createdAt : now,
-          updatedAt: (doc.updatedAt !== null && doc.updatedAt !== undefined) ? doc.updatedAt : now,
-        };
-
-        console.log('[Costumes Push Modifier] Output cleanDoc:', cleanDoc);
-        return cleanDoc;
-      }
-    },
-
-  });
-
-  // Monitor replication errors for costumes
-  costumesReplicationState.error$.subscribe(error => {
-    console.error('[Costumes Sync] Replication error:', error);
-    if (error.parameters) {
-      console.error('[Costumes Sync] Error parameters:', JSON.stringify(error.parameters, null, 2));
-    }
-  });
+    databaseId
+  );
 
   // Explicitly start replication to ensure it's running
   await charactersReplicationState.start();
