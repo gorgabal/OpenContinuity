@@ -123,8 +123,20 @@ export async function DatabaseSyncAppwrite() {
   await charactersReplicationState.start();
   await costumesReplicationState.start();
 
+  // Set up manual polling every 30 seconds
+  const syncInterval = setInterval(() => {
+    charactersReplicationState.reSync();
+    costumesReplicationState.reSync();
+  }, 30000); // 30 seconds
+
+  // Clean up interval when database is destroyed or page unloads
+  window.addEventListener('beforeunload', () => {
+    clearInterval(syncInterval);
+  });
+
   return {
     characters: charactersReplicationState,
-    costumes: costumesReplicationState
+    costumes: costumesReplicationState,
+    syncInterval // Return interval ID so it can be cleared if needed
   };
 }
