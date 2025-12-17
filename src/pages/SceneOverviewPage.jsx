@@ -1,29 +1,37 @@
 import { useState, useEffect } from 'react'
 import { Card, Button } from 'flowbite-react'
 import { Link } from 'react-router-dom'
-import { useScenes } from '../hooks/useScenes'
-import { useShootingDays } from '../hooks/useShootingDays'
-import { getCharacters, getCostumes, getDatabase } from '../services/database'
+import { getCharacters, getCostumes, getScenes, getShootingDays, addScene, addShootingDay, getDatabase } from '../services/database'
 
 function SceneOverviewPage() {
-  const { scenes, loading, error, createScene } = useScenes()
-  const { shootingDays, createShootingDay } = useShootingDays()
+  const [scenes, setScenes] = useState([])
+  const [shootingDays, setShootingDays] = useState([])
   const [characters, setCharacters] = useState([])
   const [costumes, setCostumes] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     const loadData = async () => {
-      await getDatabase();
-
       try {
-        const [charactersData, costumesData] = await Promise.all([
+        setLoading(true)
+        await getDatabase();
+
+        const [scenesData, shootingDaysData, charactersData, costumesData] = await Promise.all([
+          getScenes(),
+          getShootingDays(),
           getCharacters(),
           getCostumes()
         ])
+        setScenes(scenesData)
+        setShootingDays(shootingDaysData)
         setCharacters(charactersData)
         setCostumes(costumesData)
       } catch (err) {
-        console.error('Error loading characters/costumes:', err)
+        console.error('Error loading data:', err)
+        setError(err.message)
+      } finally {
+        setLoading(false)
       }
     }
     loadData()
@@ -35,11 +43,14 @@ function SceneOverviewPage() {
       tomorrow.setDate(tomorrow.getDate() + 1)
       const dateString = tomorrow.toISOString().split('T')[0]
 
-      await createShootingDay({
+      await addShootingDay({
         date: dateString,
         location: '',
         status: 'Gepland'
       })
+      // Refresh the data
+      const newShootingDaysData = await getShootingDays()
+      setShootingDays(newShootingDaysData)
     } catch (error) {
       alert('Error creating shooting day: ' + error.message)
     }
@@ -52,13 +63,16 @@ function SceneOverviewPage() {
         ? Math.max(...scenes.map(scene => scene.sceneNumber))
         : 0
 
-      await createScene({
+      await addScene({
         sceneNumber: maxSceneNumber + 1,
         shootingDay: null,
         location: '',
         characters: [],
         costumes: []
       })
+      // Refresh the data
+      const newScenesData = await getScenes()
+      setScenes(newScenesData)
     } catch (error) {
       alert('Error creating scene: ' + error.message)
     }
