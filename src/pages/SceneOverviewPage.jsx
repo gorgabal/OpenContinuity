@@ -57,7 +57,6 @@ function SceneOverviewPage() {
         shootingDay: null,
         location: '',
         characters: [],
-        time: '',
         costumes: []
       })
     } catch (error) {
@@ -130,9 +129,6 @@ function SceneOverviewPage() {
                                   return character ? character.name : null
                                 }).filter(name => name).join(', ')}
                               </li>
-                            )}
-                            {scene.time && (
-                              <li className="text-gray-700">Tijd: {scene.time}</li>
                             )}
                             {scene.costumes && scene.costumes.length > 0 && (
                               <li className="text-gray-700">

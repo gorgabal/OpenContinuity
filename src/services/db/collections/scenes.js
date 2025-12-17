@@ -30,10 +30,6 @@ export const sceneSchema = {
       },
       default: []
     },
-    time: {
-      type: 'string',
-      default: '',
-    },
     costumes: {
       type: 'array',
       ref: 'costumes',
@@ -64,7 +60,6 @@ const crud = createCRUDOperations(() => getDb(), 'scenes', 'Scene', {
   shootingDay: null,
   location: '',
   characters: [],
-  time: '',
   costumes: []
 }, { useTimestamps: true });
 

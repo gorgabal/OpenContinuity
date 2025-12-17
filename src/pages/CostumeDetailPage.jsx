@@ -6,9 +6,6 @@ import {
   getCostumeById,
   getCostumeById$,
   updateCostume,
-  addPhotoToCostume,
-  getAllPhotosForCostume,
-  removePhotoFromCostume,
   getCharacterById,
   getSceneById,
   getCharacters,
@@ -117,61 +114,15 @@ function CostumeDetailPage() {
   };
 
   const handleTakePhoto = () => {
-    if (cameraInputRef) {
-      setIsAddingPhoto(true);
-      cameraInputRef.click();
-    }
+    setError('Photo functionality is temporarily unavailable. It will be re-implemented soon.');
   };
 
-  const handlePhotoCapture = async (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      try {
-        await addPhotoToCostume(id, file);
-        // Photo will be updated via the reactive subscription
-      } catch (err) {
-        console.error('Failed to add photo:', err);
-        setError(err.message);
-      }
-    }
-    setIsAddingPhoto(false);
-    // Clear the input so the same photo can be selected again
-    e.target.value = '';
-  };
 
-  const handleRemovePhoto = async (photoId) => {
-    try {
-      await removePhotoFromCostume(id, photoId);
-      // Photo will be removed via the reactive subscription
-    } catch (err) {
-      console.error('Failed to remove photo:', err);
-      setError(err.message);
-    }
-  };
 
-  // Load photo URLs when costume changes (attachments change)
-  useEffect(() => {
-    const loadPhotoUrls = async () => {
-      if (!costume) {
-        setPhotoUrls([]);
-        return;
-      }
 
-      try {
-        const photos = await getAllPhotosForCostume(id);
-        setPhotoUrls(photos.map(photo => ({
-          id: photo.id,
-          url: photo.url,
-          filename: photo.id // Use photo ID as filename for now
-        })));
-      } catch (err) {
-        console.error('Failed to load photo URLs:', err);
-        setError(err.message);
-      }
-    };
 
-    loadPhotoUrls();
-  }, [costume, id]);
+  // Photo functionality temporarily disabled - attachments incompatible with Appwrite sync
+  // Will be re-implemented with alternative solution
 
   const handleNotesChange = async event => {
     const newNotes = event.target.value;
@@ -296,48 +247,18 @@ function CostumeDetailPage() {
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold">Photos</h2>
               <Button
-                color="blue"
+                color="gray"
                 onClick={handleTakePhoto}
-                disabled={isAddingPhoto}
+                disabled={true}
               >
-                {isAddingPhoto ? 'Adding...' : 'Take Photo'}
+                Coming Soon
               </Button>
             </div>
 
-            {photoUrls.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <p>No photos yet. Take your first photo!</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-4">
-                {photoUrls.map((photo) => (
-                  <div key={photo.id} className="relative group">
-                    <img
-                      src={photo.url}
-                      alt={photo.filename}
-                      className="w-full h-48 object-cover rounded-lg"
-                    />
-                    <button
-                      onClick={() => handleRemovePhoto(photo.id)}
-                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="Remove photo"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Hidden camera input for instant capture */}
-            <input
-              ref={(ref) => setCameraInputRef(ref)}
-              type="file"
-              accept="image/*"
-              capture="camera"
-              style={{ display: 'none' }}
-              onChange={handlePhotoCapture}
-            />
+            <div className="text-center py-8 text-gray-500">
+              <p className="mb-2">Photo functionality is temporarily unavailable.</p>
+              <p className="text-sm">This feature is being re-implemented to work with cloud synchronization.</p>
+            </div>
           </Card>
         </div>
 

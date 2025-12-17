@@ -5,7 +5,6 @@ export const costumeSchema = {
   version: 0,
   primaryKey: 'id',
   type: 'object',
-  attachments: {}, // Enable attachments for storing photos
   properties: {
     id: {
       type: 'string',
@@ -26,6 +25,10 @@ export const costumeSchema = {
         type: 'string'
       },
       default: []
+    },
+    projects: {
+      type: ['string', 'null'],
+      ref: 'projects',
     },
     notes: {
       type: 'string',
@@ -52,6 +55,7 @@ const crud = createCRUDOperations(() => getDb(), 'costumes', 'Costume', {
   name: 'New Costume',
   character: null,
   scenes: [],
+  projects: null,
   notes: ''
 }, { useTimestamps: true });
 
@@ -85,106 +89,20 @@ export async function getCostumesWithCharacters() {
 
 // Photo-related functions
 export async function addPhotoToCostume(costumeId, photoFile) {
-  const db = await getDb();
-  let costume = await db.costumes.findOne(costumeId).exec();
-
-  if (!costume) {
-    throw new Error(`Costume with id ${costumeId} not found`);
-  }
-
-  // Generate unique photo ID
-  const photoId = generateUUID();
-
-  // Store photo as RxDB attachment (works offline)
-  await costume.putAttachment({
-    id: photoId,
-    data: photoFile,
-    type: photoFile.type || 'image/jpeg'
-  });
-
-  // Re-fetch the document to get the latest version with the attachment
-  costume = await db.costumes.findOne(costumeId).exec();
-
-  // Update costume's updatedAt timestamp
-  await costume.update({
-    $set: getTimestamps(false)
-  });
-
-  return { id: photoId, filename: photoFile.name, createdAt: new Date().toISOString() };
+  throw new Error('Photo functionality not yet implemented. RxDB attachments are incompatible with Appwrite replication and need to be replaced with an alternative solution.');
 }
 
 export async function getPhotoUrl(costumeId, photoId) {
-  const db = await getDb();
-  const costume = await db.costumes.findOne(costumeId).exec();
-
-  if (!costume) {
-    throw new Error(`Costume with id ${costumeId} not found`);
-  }
-
-  // Get attachment from RxDB
-  const attachment = costume.getAttachment(photoId);
-  if (!attachment) {
-    throw new Error(`Photo with id ${photoId} not found`);
-  }
-
-  // Get the blob data and create an object URL
-  const blob = await attachment.getData();
-  const url = URL.createObjectURL(blob);
-
-  return url;
+  throw new Error('Photo functionality not yet implemented. RxDB attachments are incompatible with Appwrite replication and need to be replaced with an alternative solution.');
 }
 
 export async function removePhotoFromCostume(costumeId, photoId) {
-  const db = await getDb();
-  const costume = await db.costumes.findOne(costumeId).exec();
-
-  if (!costume) {
-    throw new Error(`Costume with id ${costumeId} not found`);
-  }
-
-  // Get attachment to verify it exists
-  const attachment = costume.getAttachment(photoId);
-  if (!attachment) {
-    throw new Error(`Photo with id ${photoId} not found`);
-  }
-
-  // Remove attachment from RxDB
-  await attachment.remove();
-
-  // Update costume's updatedAt timestamp
-  await costume.update({
-    $set: getTimestamps(false)
-  });
+  throw new Error('Photo functionality not yet implemented. RxDB attachments are incompatible with Appwrite replication and need to be replaced with an alternative solution.');
 }
 
 // Get all photos for a costume
 export async function getAllPhotosForCostume(costumeId) {
-  const db = await getDb();
-  const costume = await db.costumes.findOne(costumeId).exec();
-
-  if (!costume) {
-    throw new Error(`Costume with id ${costumeId} not found`);
-  }
-
-  // Get all attachments for this costume
-  const attachments = costume.allAttachments();
-
-  // Map attachments to photo metadata
-  const photos = await Promise.all(
-    attachments.map(async (attachment) => {
-      const data = await attachment.getData();
-      return {
-        id: attachment.id,
-        type: attachment.type,
-        length: attachment.length,
-        digest: attachment.digest,
-        // Create blob URL for display
-        url: URL.createObjectURL(data)
-      };
-    })
-  );
-
-  return photos;
+  throw new Error('Photo functionality not yet implemented. RxDB attachments are incompatible with Appwrite replication and need to be replaced with an alternative solution.');
 }
 
 // Get costumes by character ID
