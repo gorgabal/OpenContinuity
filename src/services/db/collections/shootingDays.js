@@ -45,6 +45,8 @@ const crud = createCRUDOperations(() => getDb(), 'shootingday', 'Shooting day', 
 export const addShootingDay = crud.add;
 export const getShootingDays = crud.getAll;
 export const getShootingDayById = crud.getById;
+export const getShootingDayById$ = crud.getById$;
+export const getShootingDays$ = crud.getAll$;
 export const updateShootingDay = crud.update;
 
 // Create a default shooting day if none exist

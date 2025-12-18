@@ -1,5 +1,6 @@
 // Scene collection operations
 import { createCRUDOperations } from '../utils.js';
+import { map } from 'rxjs/operators';
 import { replicateAppwrite } from 'rxdb/plugins/replication-appwrite';
 
 export const sceneSchema = {
@@ -67,12 +68,22 @@ const crud = createCRUDOperations(() => getDb(), 'scenes', 'Scene', {
 // Export CRUD operations directly
 export const addScene = crud.add;
 export const getSceneById = crud.getById;
+export const getSceneById$ = crud.getById$;
 export const updateScene = crud.update;
 
 // Get all scenes sorted by scene number
 export async function getScenes() {
   const scenes = await crud.getAll();
   return scenes.sort((a, b) => a.sceneNumber - b.sceneNumber);
+}
+
+// Get all scenes as observable (reactive)
+export async function getScenes$() {
+  const observable = await crud.getAll$();
+  // Transform the observable to sort by scene number
+  return observable.pipe(
+    map(scenes => scenes.sort((a, b) => a.sceneNumber - b.sceneNumber))
+  );
 }
 
 // Get scenes by shooting day

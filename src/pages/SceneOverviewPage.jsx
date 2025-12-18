@@ -1,7 +1,15 @@
 import { useState, useEffect } from 'react'
 import { Card, Button } from 'flowbite-react'
 import { Link } from 'react-router-dom'
-import { getCharacters, getCostumes, getScenes, getShootingDays, addScene, addShootingDay, getDatabase } from '../services/database'
+import {
+  addScene,
+  addShootingDay,
+  getScenes$,
+  getShootingDays$,
+  getCharacters$,
+  getCostumes$,
+  getDatabase,
+} from '../services/database'
 
 function SceneOverviewPage() {
   const [scenes, setScenes] = useState([])
@@ -12,29 +20,53 @@ function SceneOverviewPage() {
   const [error, setError] = useState(null)
 
   useEffect(() => {
+    const subscriptions = []
+
     const loadData = async () => {
       try {
         setLoading(true)
+
         await getDatabase();
 
-        const [scenesData, shootingDaysData, charactersData, costumesData] = await Promise.all([
-          getScenes(),
-          getShootingDays(),
-          getCharacters(),
-          getCostumes()
-        ])
-        setScenes(scenesData)
-        setShootingDays(shootingDaysData)
-        setCharacters(charactersData)
-        setCostumes(costumesData)
+        // Subscribe to reactive queries that automatically update when data changes
+        const scenesObservable = await getScenes$()
+        const scenesSub = scenesObservable.subscribe(scenesData => {
+          setScenes(scenesData)
+          setLoading(false)
+        })
+        subscriptions.push(scenesSub)
+
+        const shootingDaysObservable = await getShootingDays$()
+        const shootingDaysSub = shootingDaysObservable.subscribe(shootingDaysData => {
+          setShootingDays(shootingDaysData)
+        })
+        subscriptions.push(shootingDaysSub)
+
+        const charactersObservable = await getCharacters$()
+        const charactersSub = charactersObservable.subscribe(charactersData => {
+          setCharacters(charactersData)
+        })
+        subscriptions.push(charactersSub)
+
+        const costumesObservable = await getCostumes$()
+        const costumesSub = costumesObservable.subscribe(costumesData => {
+          setCostumes(costumesData)
+        })
+        subscriptions.push(costumesSub)
+
       } catch (err) {
         console.error('Error loading data:', err)
         setError(err.message)
-      } finally {
         setLoading(false)
       }
     }
+
     loadData()
+
+    // Cleanup: unsubscribe from all observables when component unmounts
+    return () => {
+      subscriptions.forEach(sub => sub.unsubscribe())
+    }
   }, [])
 
   const handleAddShootingDay = async () => {
@@ -47,9 +79,7 @@ function SceneOverviewPage() {
         date: dateString,
         location: '',
       })
-      // Refresh the data
-      const newShootingDaysData = await getShootingDays()
-      setShootingDays(newShootingDaysData)
+      // No need to manually refresh - the subscription will handle it
     } catch (error) {
       alert('Error creating shooting day: ' + error.message)
     }
@@ -69,9 +99,7 @@ function SceneOverviewPage() {
         characters: [],
         costumes: []
       })
-      // Refresh the data
-      const newScenesData = await getScenes()
-      setScenes(newScenesData)
+      // No need to manually refresh - the subscription will handle it
     } catch (error) {
       alert('Error creating scene: ' + error.message)
     }
