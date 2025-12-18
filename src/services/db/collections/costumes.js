@@ -18,6 +18,7 @@ export const costumeSchema = {
     character: {
       type: ['string', 'null'],
       ref: 'characters',
+      default: null,
     },
     scenes: {
       type: 'array',
@@ -30,6 +31,7 @@ export const costumeSchema = {
     projects: {
       type: ['string', 'null'],
       ref: 'projects',
+      default: null,
     },
     notes: {
       type: 'string',
