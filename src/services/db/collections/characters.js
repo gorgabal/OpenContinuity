@@ -92,6 +92,7 @@ export function createCharacterReplication(collection, client, databaseId) {
     collection,
     waitForLeadership: true, // Only leader tab syncs (prevents duplicate requests)
     retryTime: 3000, // Retry every 3 seconds instead of default 5 seconds
+    live: false, // Disable realtime subscriptions, use polling instead
     pull: {
       batchSize: 10,
       modifier: (doc) => {

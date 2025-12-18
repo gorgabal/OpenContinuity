@@ -148,6 +148,7 @@ export function createCostumeReplication(collection, client, databaseId) {
     deletedField: 'deleted',
     collection,
     waitForLeadership: true, // Only leader tab syncs (prevents duplicate requests)
+    live: false, // Disable realtime subscriptions, use polling instead
     pull: {
       batchSize: 10,
       modifier: (doc) => {
