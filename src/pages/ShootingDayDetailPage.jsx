@@ -19,8 +19,7 @@ function ShootingDayDetailPage() {
   
   const [editData, setEditData] = useState({
     date: '',
-    location: '',
-    status: 'Gepland'
+    location: ''
   })
 
   // Track available scenes for assignment
@@ -51,8 +50,7 @@ function ShootingDayDetailPage() {
         // Initialize edit data
         setEditData({
           date: shootingDayData.date || '',
-          location: shootingDayData.location || '',
-          status: shootingDayData.status || 'Gepland'
+          location: shootingDayData.location || ''
         })
         
         // Set available scenes (scenes not assigned to this shooting day)
@@ -100,8 +98,7 @@ function ShootingDayDetailPage() {
     // Reset edit data to original values
     setEditData({
       date: shootingDay.date || '',
-      location: shootingDay.location || '',
-      status: shootingDay.status || 'Gepland'
+      location: shootingDay.location || ''
     })
     setIsEditing(false)
     setError(null)
@@ -215,7 +212,7 @@ function ShootingDayDetailPage() {
             Shooting Day: {new Date(shootingDay.date).toLocaleDateString('nl-NL')}
           </h1>
           <p className="text-gray-600 mt-2">
-            Location: {shootingDay.location || 'Not specified'} • Status: {shootingDay.status}
+            Location: {shootingDay.location || 'Not specified'}
           </p>
         </div>
         <div className="space-y-1">
@@ -251,7 +248,7 @@ function ShootingDayDetailPage() {
       {/* Shooting Day Details */}
       <Card className="mb-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Shooting Day Details</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <Label htmlFor="date" value="Date" />
             {isEditing ? (
@@ -279,25 +276,6 @@ function ShootingDayDetailPage() {
               />
             ) : (
               <p className="mt-1">{shootingDay.location || 'Not specified'}</p>
-            )}
-          </div>
-
-          <div>
-            <Label htmlFor="status" value="Status" />
-            {isEditing ? (
-              <Select
-                id="status"
-                value={editData.status}
-                onChange={(e) => setEditData({ ...editData, status: e.target.value })}
-              >
-                <option value="Gepland">Gepland</option>
-                <option value="Bevestigd">Bevestigd</option>
-                <option value="In afwachting">In afwachting</option>
-                <option value="Afgerond">Afgerond</option>
-                <option value="Geannuleerd">Geannuleerd</option>
-              </Select>
-            ) : (
-              <p className="mt-1">{shootingDay.status}</p>
             )}
           </div>
         </div>

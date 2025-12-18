@@ -46,7 +46,6 @@ function SceneOverviewPage() {
       await addShootingDay({
         date: dateString,
         location: '',
-        status: 'Gepland'
       })
       // Refresh the data
       const newShootingDaysData = await getShootingDays()

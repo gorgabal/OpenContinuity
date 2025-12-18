@@ -10,7 +10,7 @@ import { Client } from 'appwrite';
 import { costumeSchema, initCostumeOperations, createCostumeReplication } from './db/collections/costumes.js';
 import { characterSchema, initCharacterOperations, createCharacterReplication } from './db/collections/characters.js';
 import { sceneSchema, initSceneOperations, createSceneReplication } from './db/collections/scenes.js';
-import { shootingDaySchema, initShootingDayOperations } from './db/collections/shootingDays.js';
+import { shootingDaySchema, initShootingDayOperations, createShootingDayReplication } from './db/collections/shootingDays.js';
 import { createConflictHandler } from './db/conflictHandler.js';
 
 let database = null;
@@ -48,9 +48,9 @@ export async function initDatabase() {
         schema: costumeSchema,
         conflictHandler: createConflictHandler(),
       },
-      shootingdays: {
+      shootingday: {
         schema: shootingDaySchema,
-
+        conflictHandler: createConflictHandler(),
       },
       scenes: {
         schema: sceneSchema,
@@ -126,16 +126,24 @@ export async function DatabaseSyncAppwrite() {
     databaseId
   );
 
+  const shootingDaysReplicationState = createShootingDayReplication(
+    db.shootingday,
+    client,
+    databaseId
+  );
+
   // Explicitly start replication to ensure it's running
   await charactersReplicationState.start();
   await costumesReplicationState.start();
   await scenesReplicationState.start();
+  await shootingDaysReplicationState.start();
 
   // Set up manual polling every 30 seconds
   const syncInterval = setInterval(() => {
     charactersReplicationState.reSync();
     costumesReplicationState.reSync();
     scenesReplicationState.reSync();
+    shootingDaysReplicationState.reSync();
   }, 30000); // 30 seconds
 
   // Clean up interval when database is destroyed or page unloads
@@ -147,6 +155,7 @@ export async function DatabaseSyncAppwrite() {
     characters: charactersReplicationState,
     costumes: costumesReplicationState,
     scenes: scenesReplicationState,
+    shootingdays: shootingDaysReplicationState,
     syncInterval // Return interval ID so it can be cleared if needed
   };
 }
