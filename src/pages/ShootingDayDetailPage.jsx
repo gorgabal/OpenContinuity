@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { Card, Button, Spinner, TextInput, Label, Select, Modal } from 'flowbite-react'
+import { Card, Button, Spinner, TextInput, Textarea, Label, Select, Modal } from 'flowbite-react'
 import { getShootingDayById, updateShootingDay, getScenesByShootingDay, getCostumes, getScenes, updateScene, getCharacters } from '../services/database'
 
 function ShootingDayDetailPage() {
@@ -19,7 +19,9 @@ function ShootingDayDetailPage() {
   
   const [editData, setEditData] = useState({
     date: '',
-    location: ''
+    location: '',
+    name: '',
+    notes: ''
   })
 
   // Track available scenes for assignment
@@ -50,7 +52,9 @@ function ShootingDayDetailPage() {
         // Initialize edit data
         setEditData({
           date: shootingDayData.date || '',
-          location: shootingDayData.location || ''
+          location: shootingDayData.location || '',
+          name: shootingDayData.name || '',
+          notes: shootingDayData.notes || ''
         })
         
         // Set available scenes (scenes not assigned to this shooting day)
@@ -83,7 +87,6 @@ function ShootingDayDetailPage() {
       // Refresh shooting day data
       const updatedShootingDay = await getShootingDayById(id)
       setShootingDay(updatedShootingDay)
-      
       setIsEditing(false)
       
     } catch (err) {
@@ -98,7 +101,9 @@ function ShootingDayDetailPage() {
     // Reset edit data to original values
     setEditData({
       date: shootingDay.date || '',
-      location: shootingDay.location || ''
+      location: shootingDay.location || '',
+      name: shootingDay.name || '',
+      notes: shootingDay.notes || ''
     })
     setIsEditing(false)
     setError(null)
@@ -209,10 +214,10 @@ function ShootingDayDetailPage() {
       <div className="mb-6 flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">
-            Shooting Day: {new Date(shootingDay.date).toLocaleDateString('nl-NL')}
+            {shootingDay.name || new Date(shootingDay.date).toLocaleDateString('nl-NL')}
           </h1>
           <p className="text-gray-600 mt-2">
-            Location: {shootingDay.location || 'Not specified'}
+            {new Date(shootingDay.date).toLocaleDateString('nl-NL')} • {shootingDay.location || 'Not specified'}
           </p>
         </div>
         <div className="space-y-1">
@@ -276,6 +281,35 @@ function ShootingDayDetailPage() {
               />
             ) : (
               <p className="mt-1">{shootingDay.location || 'Not specified'}</p>
+            )}
+          </div>
+
+          <div>
+            <Label htmlFor="name" value="Name" />
+            {isEditing ? (
+              <TextInput
+                id="name"
+                value={editData.name}
+                onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                placeholder="e.g. Day 1, Morning shoot"
+              />
+            ) : (
+              <p className="mt-1">{shootingDay.name || 'Not specified'}</p>
+            )}
+          </div>
+
+          <div className="md:col-span-2">
+            <Label htmlFor="notes" value="Notes" />
+            {isEditing ? (
+              <Textarea
+                id="notes"
+                value={editData.notes}
+                onChange={(e) => setEditData({ ...editData, notes: e.target.value })}
+                placeholder="Add any notes or special instructions for this shooting day"
+                rows={4}
+              />
+            ) : (
+              <p className="mt-1">{shootingDay.notes || 'No notes'}</p>
             )}
           </div>
         </div>

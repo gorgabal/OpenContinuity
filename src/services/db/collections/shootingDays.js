@@ -19,6 +19,14 @@ export const shootingDaySchema = {
       type: 'string',
       default: '',
     },
+    name: {
+      type: 'string',
+      default: '',
+    },
+    notes: {
+      type: 'string',
+      default: '',
+    },
     createdAt: {
       type: 'number',
     },
@@ -38,7 +46,9 @@ export function initShootingDayOperations(getDatabaseFn) {
 
 const crud = createCRUDOperations(() => getDb(), 'shootingday', 'Shooting day', {
   date: new Date().toISOString().split('T')[0],
-  location: ''
+  location: '',
+  name: '',
+  notes: ''
 }, { useTimestamps: true });
 
 // Export CRUD operations directly
@@ -80,16 +90,18 @@ export function createShootingDayReplication(collection, client, databaseId) {
       modifier: (doc) => {
         // Add timestamps if missing (coming from Appwrite)
         const now = Date.now();
-        
+
         // Normalize date to YYYY-MM-DD format (remove time portion if present)
         let normalizedDate = doc.date;
         if (normalizedDate && normalizedDate.includes('T')) {
           normalizedDate = normalizedDate.split('T')[0];
         }
-        
+
         return {
           ...doc,
           date: normalizedDate,
+          name: doc.name || '',
+          notes: doc.notes || '',
           createdAt: (doc.createdAt !== null && doc.createdAt !== undefined) ? doc.createdAt : now,
           updatedAt: (doc.updatedAt !== null && doc.updatedAt !== undefined) ? doc.updatedAt : now,
         };
@@ -115,6 +127,8 @@ export function createShootingDayReplication(collection, client, databaseId) {
           id: doc.id,
           date: normalizedDate,
           location: doc.location || '',
+          name: doc.name || '',
+          notes: doc.notes || '',
           createdAt: (doc.createdAt !== null && doc.createdAt !== undefined) ? doc.createdAt : now,
           updatedAt: (doc.updatedAt !== null && doc.updatedAt !== undefined) ? doc.updatedAt : now,
         };

@@ -70,6 +70,7 @@ export const addScene = crud.add;
 export const getSceneById = crud.getById;
 export const getSceneById$ = crud.getById$;
 export const updateScene = crud.update;
+export const deleteScene = crud.delete;
 
 // Get all scenes sorted by scene number
 export async function getScenes() {

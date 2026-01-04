@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Card, Button, Spinner, TextInput, Label, Select, Modal } from 'flowbite-react'
-import { getSceneById, getShootingDayById, getShootingDays, updateScene, getCharacters, getCostumes } from '../services/database'
+import { getSceneById, getShootingDayById, getShootingDays, updateScene, deleteScene, getCharacters, getCostumes } from '../services/database'
 
 function SceneDetailPage() {
   const { id } = useParams()
@@ -18,6 +18,8 @@ function SceneDetailPage() {
   const [isEditing, setIsEditing] = useState(false)
   const [showCharacterModal, setShowCharacterModal] = useState(false)
   const [showCostumeModal, setShowCostumeModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const [editData, setEditData] = useState({
     sceneNumber: '',
@@ -141,6 +143,24 @@ function SceneDetailPage() {
     }))
   }
 
+  const handleDelete = async () => {
+    try {
+      setDeleting(true)
+      setError(null)
+
+      await deleteScene(id)
+
+      // Navigate back to overview after successful deletion
+      navigate('/scene-overview')
+    } catch (err) {
+      console.error('Error deleting scene:', err)
+      setError(err.message)
+      setShowDeleteModal(false)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="p-4">
@@ -193,6 +213,9 @@ function SceneDetailPage() {
             <>
               <Button className="w-full" onClick={() => setIsEditing(true)}>
                 Edit
+              </Button>
+              <Button className="w-full" color="failure" onClick={() => setShowDeleteModal(true)}>
+                Delete
               </Button>
               <Button className="w-full" color="gray" onClick={() => navigate('/scene-overview')}>
                 Back
@@ -479,6 +502,32 @@ function SceneDetailPage() {
           <Button color="gray" onClick={() => setShowCostumeModal(false)}>
             Close
           </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal show={showDeleteModal} onClose={() => setShowDeleteModal(false)} size="md">
+        <Modal.Header>Delete Scene</Modal.Header>
+        <Modal.Body>
+          <div className="text-center">
+            <p className="text-lg mb-4">
+              Are you sure you want to delete Scene {scene.sceneNumber}?
+            </p>
+            <p className="text-gray-600">
+              This action cannot be undone.
+            </p>
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <div className="flex justify-center gap-4 w-full">
+            <Button color="failure" onClick={handleDelete} disabled={deleting}>
+              {deleting ? <Spinner size="sm" className="mr-2" /> : null}
+              Delete
+            </Button>
+            <Button color="gray" onClick={() => setShowDeleteModal(false)} disabled={deleting}>
+              Cancel
+            </Button>
+          </div>
         </Modal.Footer>
       </Modal>
     </div>

@@ -181,7 +181,7 @@ function SceneOverviewPage() {
                             )}
                             {shootingDay && (
                               <li className="text-gray-700 mt-2">
-                                Draaidag: {new Date(shootingDay.date).toLocaleDateString('nl-NL')}
+                                Draaidag: {shootingDay.name || new Date(shootingDay.date).toLocaleDateString('nl-NL')}
                               </li>
                             )}
                           </ul>
@@ -219,9 +219,10 @@ function SceneOverviewPage() {
                   <Link to={`/shootingday/${day.id}`}>
                     <Card className="hover:bg-gray-50 transition-colors">
                       <div className="flex justify-between items-center mb-2">
-                        <h3 className="font-bold">{new Date(day.date).toLocaleDateString('nl-NL')}</h3>
+                        <h3 className="font-bold">{day.name || new Date(day.date).toLocaleDateString('nl-NL')}</h3>
                         <span className="text-sm text-gray-500">{day.status}</span>
                       </div>
+                      <p className="text-sm text-gray-600">{new Date(day.date).toLocaleDateString('nl-NL')}</p>
                       <p className="text-gray-700">Locatie: {day.location}</p>
                       <p className="text-gray-700">
                         Scenes: {dayScenes.length > 0 ? dayScenes.map(scene => scene.sceneNumber).join(', ') : 'No scenes'}
