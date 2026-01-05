@@ -1,8 +1,9 @@
-import { StrictMode } from 'react';
+import { StrictMode, useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import './index.css';
 
+import { isAuthenticatedLocally, onAuthChange } from './services/auth.js';
 import MainNav from './assets/components/MainNavigation.jsx';
 import CostumeDetailPage from './pages/CostumeDetailPage.jsx';
 import SceneOverviewPage from './pages/SceneOverviewPage.jsx';
@@ -11,9 +12,22 @@ import ShootingDayDetailPage from './pages/ShootingDayDetailPage.jsx';
 import CostumeOverviewPage from './pages/CostumeOverviewPage.jsx';
 import CharacterOverviewPage from './pages/CharacterOverviewPage.jsx';
 import CharacterDetailPage from './pages/CharacterDetailPage.jsx';
+import LoginPage from './pages/LoginPage.jsx';
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
+function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(isAuthenticatedLocally());
+
+  useEffect(() => {
+    // Listen for auth state changes
+    const cleanup = onAuthChange(() => {
+      setIsAuthenticated(isAuthenticatedLocally());
+    });
+
+    // Cleanup listener on unmount
+    return cleanup;
+  }, []);
+
+  return (
     <BrowserRouter>
       <div style={{
         backgroundColor: '#dc2626',
@@ -29,17 +43,29 @@ createRoot(document.getElementById('root')).render(
       }}>
         this app is in active development. ANY DATA ENTERED WILL BE LOST. this is a testing environment
       </div>
-      <MainNav />
-      <Routes>
-        <Route path="/" element={<Navigate to="/costumes" replace />} />
-        <Route path="costumes" element={<CostumeOverviewPage />} />
-        <Route path="costumes/:id" element={<CostumeDetailPage />} />
-        <Route path="characters" element={<CharacterOverviewPage />} />
-        <Route path="characters/:id" element={<CharacterDetailPage />} />
-        <Route path="scene-overview" element={<SceneOverviewPage />} />
-        <Route path="scene/:id" element={<SceneDetailPage />} />
-        <Route path="shootingday/:id" element={<ShootingDayDetailPage />} />
-      </Routes>
+      {!isAuthenticated ? (
+        <LoginPage />
+      ) : (
+        <>
+          <MainNav />
+          <Routes>
+            <Route path="/" element={<Navigate to="/costumes" replace />} />
+            <Route path="costumes" element={<CostumeOverviewPage />} />
+            <Route path="costumes/:id" element={<CostumeDetailPage />} />
+            <Route path="characters" element={<CharacterOverviewPage />} />
+            <Route path="characters/:id" element={<CharacterDetailPage />} />
+            <Route path="scene-overview" element={<SceneOverviewPage />} />
+            <Route path="scene/:id" element={<SceneDetailPage />} />
+            <Route path="shootingday/:id" element={<ShootingDayDetailPage />} />
+          </Routes>
+        </>
+      )}
     </BrowserRouter>
+  );
+}
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
   </StrictMode>,
 );

@@ -1,5 +1,6 @@
 import { Navbar } from "flowbite-react"
 import { Link } from "react-router-dom"
+
 function MainNav() {
   return (
     <div>
