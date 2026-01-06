@@ -1,9 +1,9 @@
-import { StrictMode, useState, useEffect } from 'react';
+import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import './index.css';
 
-import { isAuthenticatedLocally, onAuthChange } from './services/auth.js';
+import { AuthProvider, useAuth } from './contexts/AuthContext.jsx';
 import MainNav from './assets/components/MainNavigation.jsx';
 import CostumeDetailPage from './pages/CostumeDetailPage.jsx';
 import SceneOverviewPage from './pages/SceneOverviewPage.jsx';
@@ -15,17 +15,7 @@ import CharacterDetailPage from './pages/CharacterDetailPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(isAuthenticatedLocally());
-
-  useEffect(() => {
-    // Listen for auth state changes
-    const cleanup = onAuthChange(() => {
-      setIsAuthenticated(isAuthenticatedLocally());
-    });
-
-    // Cleanup listener on unmount
-    return cleanup;
-  }, []);
+  const { isAuthenticated } = useAuth();
 
   return (
     <BrowserRouter>
@@ -66,6 +56,8 @@ function App() {
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <App />
+    <AuthProvider>
+      <App />
+    </AuthProvider>
   </StrictMode>,
 );

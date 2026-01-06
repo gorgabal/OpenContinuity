@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card, Label, TextInput, Button, Alert } from 'flowbite-react';
 import { useNavigate } from 'react-router-dom';
 import { Client, Account } from 'appwrite';
-import { setAuthFlag } from '../services/auth.js';
+import { useAuth } from '../contexts/AuthContext.jsx';
 
 function LoginPage() {
   const [email, setEmail] = useState('');
@@ -10,6 +10,7 @@ function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -27,7 +28,7 @@ function LoginPage() {
       await account.createEmailPasswordSession(email, password);
 
       // Set authentication flag to enable offline access
-      setAuthFlag();
+      login();
 
       // Redirect to home page on successful login
       navigate('/');
