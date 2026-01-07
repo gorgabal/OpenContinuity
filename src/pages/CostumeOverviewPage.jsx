@@ -3,13 +3,15 @@ import { Card, Button, Spinner } from 'flowbite-react';
 import { Link } from 'react-router-dom';
 import {
   getDatabase,
-  getCostumes,
-  getCostumes$,
+  getCostumesByProject,
+  getCostumesByProject$,
   addCostume,
-  getCharacters,
+  getCharactersByProject,
 } from '../services/database.js';
+import { useProject } from '../contexts/ProjectContext.jsx';
 
 function CostumeOverviewPage() {
+  const { currentProjectId } = useProject();
   const [costumes, setCostumes] = useState([]);
   const [characters, setCharacters] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -24,17 +26,24 @@ function CostumeOverviewPage() {
 
         await getDatabase();
 
-        // Get initial costumes and characters
-        const initialCostumes = await getCostumes();
-        const allCharacters = await getCharacters();
-        setCostumes(initialCostumes);
-        setCharacters(allCharacters);
+        // Only load data if we have a current project
+        if (currentProjectId) {
+          // Get initial costumes and characters for current project
+          const initialCostumes = await getCostumesByProject(currentProjectId);
+          const allCharacters = await getCharactersByProject(currentProjectId);
+          setCostumes(initialCostumes);
+          setCharacters(allCharacters);
 
-        // Subscribe to costume changes for reactive updates
-        const costumes$ = await getCostumes$();
-        subscription = costumes$.subscribe(updatedCostumes => {
-          setCostumes(updatedCostumes);
-        });
+          // Subscribe to costume changes for reactive updates
+          const costumes$ = await getCostumesByProject$(currentProjectId);
+          subscription = costumes$.subscribe(updatedCostumes => {
+            setCostumes(updatedCostumes);
+          });
+        } else {
+          // No project selected yet
+          setCostumes([]);
+          setCharacters([]);
+        }
 
         setError(null);
       } catch (err) {
@@ -53,12 +62,18 @@ function CostumeOverviewPage() {
         subscription.unsubscribe();
       }
     };
-  }, []);
+  }, [currentProjectId]);
 
   const handleAddCostume = async () => {
+    if (!currentProjectId) {
+      alert('Please select or create a project first');
+      return;
+    }
+
     try {
       await addCostume({
         name: 'New Costume',
+        projects: currentProjectId,
       });
     } catch (err) {
       console.error('Failed to add costume:', err);

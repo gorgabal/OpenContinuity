@@ -40,6 +40,11 @@ export const sceneSchema = {
       },
       default: []
     },
+    projects: {
+      type: ['string', 'null'],
+      ref: 'projects',
+      default: null,
+    },
     createdAt: {
       type: 'number',
     },
@@ -62,7 +67,8 @@ const crud = createCRUDOperations(() => getDb(), 'scenes', 'Scene', {
   shootingDay: null,
   location: '',
   characters: [],
-  costumes: []
+  costumes: [],
+  projects: null
 }, { useTimestamps: true });
 
 // Export CRUD operations directly
@@ -91,6 +97,22 @@ export async function getScenes$() {
 export async function getScenesByShootingDay(shootingDayId) {
   const scenes = await crud.findByQuery({ shootingDay: shootingDayId });
   return scenes.sort((a, b) => a.sceneNumber - b.sceneNumber);
+}
+
+// Get scenes by project ID
+export async function getScenesByProject(projectId) {
+  const db = await getDb();
+  const scenes = await db.scenes.find({ selector: { projects: projectId } }).exec();
+  return scenes.sort((a, b) => a.sceneNumber - b.sceneNumber);
+}
+
+// Get scenes by project as observable
+export async function getScenesByProject$(projectId) {
+  const db = await getDb();
+  const observable = db.scenes.find({ selector: { projects: projectId } }).$;
+  return observable.pipe(
+    map(scenes => scenes.sort((a, b) => a.sceneNumber - b.sceneNumber))
+  );
 }
 
 // Replication configuration
@@ -123,11 +145,16 @@ export function createSceneReplication(collection, client, databaseId) {
           ? doc.costumes.map(c => c.$id || c)
           : (doc.costumes || []);
 
+        const projects = typeof doc.projects === 'object' && doc.projects !== null
+          ? doc.projects.$id || null
+          : doc.projects;
+
         return {
           ...doc,
           shootingDay,
           characters,
           costumes,
+          projects,
           createdAt: (doc.createdAt !== null && doc.createdAt !== undefined) ? doc.createdAt : now,
           updatedAt: (doc.updatedAt !== null && doc.updatedAt !== undefined) ? doc.updatedAt : now,
         };
@@ -150,6 +177,7 @@ export function createSceneReplication(collection, client, databaseId) {
           location: doc.location || '',
           characters: doc.characters || [],
           costumes: doc.costumes || [],
+          projects: doc.projects || null,
           createdAt: (doc.createdAt !== null && doc.createdAt !== undefined) ? doc.createdAt : now,
           updatedAt: (doc.updatedAt !== null && doc.updatedAt !== undefined) ? doc.updatedAt : now,
         };

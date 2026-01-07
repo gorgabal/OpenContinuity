@@ -11,6 +11,7 @@ import { costumeSchema, initCostumeOperations, createCostumeReplication } from '
 import { characterSchema, initCharacterOperations, createCharacterReplication } from './db/collections/characters.js';
 import { sceneSchema, initSceneOperations, createSceneReplication } from './db/collections/scenes.js';
 import { shootingDaySchema, initShootingDayOperations, createShootingDayReplication } from './db/collections/shootingDays.js';
+import { projectSchema, initProjectOperations, createProjectReplication } from './db/collections/projects.js';
 import { createConflictHandler } from './db/conflictHandler.js';
 
 let database = null;
@@ -44,6 +45,10 @@ export async function initDatabase() {
 
     // Add collections
     await database.addCollections({
+      projects: {
+        schema: projectSchema,
+        conflictHandler: createConflictHandler(),
+      },
       costumes: {
         schema: costumeSchema,
         conflictHandler: createConflictHandler(),
@@ -63,6 +68,7 @@ export async function initDatabase() {
     });
 
     // Initialize collection operations with database getter
+    initProjectOperations(getDatabase);
     initCostumeOperations(getDatabase);
     initCharacterOperations(getDatabase);
     initSceneOperations(getDatabase);
@@ -93,6 +99,7 @@ export async function getDatabase() {
 }
 
 // Re-export all collection operations
+export * from './db/collections/projects.js';
 export * from './db/collections/costumes.js';
 export * from './db/collections/characters.js';
 export * from './db/collections/scenes.js';
@@ -108,6 +115,12 @@ export async function DatabaseSyncAppwrite() {
   const databaseId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 
   // Create replication states using collection-specific configurations
+  const projectsReplicationState = createProjectReplication(
+    db.projects,
+    client,
+    databaseId
+  );
+
   const charactersReplicationState = createCharacterReplication(
     db.characters,
     client,
@@ -133,6 +146,7 @@ export async function DatabaseSyncAppwrite() {
   );
 
   // Explicitly start replication to ensure it's running
+  await projectsReplicationState.start();
   await charactersReplicationState.start();
   await costumesReplicationState.start();
   await scenesReplicationState.start();
@@ -140,6 +154,7 @@ export async function DatabaseSyncAppwrite() {
 
   // Set up manual polling every 30 seconds
   const syncInterval = setInterval(() => {
+    projectsReplicationState.reSync();
     charactersReplicationState.reSync();
     costumesReplicationState.reSync();
     scenesReplicationState.reSync();
@@ -152,6 +167,7 @@ export async function DatabaseSyncAppwrite() {
   });
 
   return {
+    projects: projectsReplicationState,
     characters: charactersReplicationState,
     costumes: costumesReplicationState,
     scenes: scenesReplicationState,

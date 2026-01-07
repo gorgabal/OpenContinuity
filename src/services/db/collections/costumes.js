@@ -71,6 +71,18 @@ export const getCostumes$ = crud.getAll$;
 export const updateCostume = crud.update;
 export const deleteCostume = crud.delete;
 
+// Get costumes by project ID
+export async function getCostumesByProject(projectId) {
+  const db = await getDb();
+  return await db.costumes.find({ selector: { projects: projectId } }).exec();
+}
+
+// Get costumes by project as observable
+export async function getCostumesByProject$(projectId) {
+  const db = await getDb();
+  return db.costumes.find({ selector: { projects: projectId } }).$;
+}
+
 // Helper function to get costume with populated character reference
 export async function getCostumeWithCharacter(id) {
   const db = await getDb();

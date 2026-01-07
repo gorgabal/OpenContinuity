@@ -1,6 +1,7 @@
 import { Navbar, Dropdown } from "flowbite-react"
 import { Link, useNavigate } from "react-router-dom"
 import { useAuth } from "../../contexts/AuthContext.jsx"
+import ProjectSelector from "../../components/ProjectSelector.jsx"
 
 function MainNav() {
   const navigate = useNavigate();
@@ -20,7 +21,8 @@ function MainNav() {
           <Navbar.Link as={Link} to="/scene-overview">Scene Overview</Navbar.Link>
           <Navbar.Link as={Link} to="/characters">Characters</Navbar.Link>
         </Navbar.Collapse>
-        <div className="flex md:order-2">
+        <div className="flex md:order-2 gap-2">
+          <ProjectSelector />
           <Dropdown
             arrowIcon={false}
             inline

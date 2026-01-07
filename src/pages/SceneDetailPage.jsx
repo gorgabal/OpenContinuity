@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Card, Button, Spinner, TextInput, Label, Select, Modal } from 'flowbite-react'
-import { getSceneById, getShootingDayById, getShootingDays, updateScene, deleteScene, getCharacters, getCostumes } from '../services/database'
+import { getSceneById, getShootingDayById, getShootingDaysByProject, updateScene, deleteScene, getCharactersByProject, getCostumesByProject } from '../services/database'
+import { useProject } from '../contexts/ProjectContext.jsx'
 
 function SceneDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { currentProjectId } = useProject()
 
   const [scene, setScene] = useState(null)
   const [shootingDay, setShootingDay] = useState(null)
@@ -33,12 +35,8 @@ function SceneDetailPage() {
     const loadData = async () => {
       try {
         setLoading(true)
-        const [sceneData, shootingDaysData, charactersData, costumesData] = await Promise.all([
-          getSceneById(id),
-          getShootingDays(),
-          getCharacters(),
-          getCostumes()
-        ])
+
+        const sceneData = await getSceneById(id)
 
         if (!sceneData) {
           setError('Scene not found')
@@ -46,9 +44,23 @@ function SceneDetailPage() {
         }
 
         setScene(sceneData)
-        setShootingDays(shootingDaysData)
-        setCharacters(charactersData)
-        setCostumes(costumesData)
+
+        // Load project-filtered data
+        if (currentProjectId) {
+          const [shootingDaysData, charactersData, costumesData] = await Promise.all([
+            getShootingDaysByProject(currentProjectId),
+            getCharactersByProject(currentProjectId),
+            getCostumesByProject(currentProjectId)
+          ])
+
+          setShootingDays(shootingDaysData)
+          setCharacters(charactersData)
+          setCostumes(costumesData)
+        } else {
+          setShootingDays([])
+          setCharacters([])
+          setCostumes([])
+        }
 
         // Initialize edit data
         setEditData({
@@ -76,7 +88,7 @@ function SceneDetailPage() {
     if (id) {
       loadData()
     }
-  }, [id])
+  }, [id, currentProjectId])
 
   const handleSave = async () => {
     try {

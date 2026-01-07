@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Card, Button, Spinner, TextInput, Textarea, Label, Select, Modal } from 'flowbite-react'
-import { getShootingDayById, updateShootingDay, getScenesByShootingDay, getCostumes, getScenes, updateScene, getCharacters } from '../services/database'
+import { getShootingDayById, updateShootingDay, getScenesByShootingDay, getCostumesByProject, getScenesByProject, updateScene, getCharactersByProject } from '../services/database'
+import { useProject } from '../contexts/ProjectContext.jsx'
 
 function ShootingDayDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { currentProjectId } = useProject()
   
   const [shootingDay, setShootingDay] = useState(null)
   const [assignedScenes, setAssignedScenes] = useState([])
@@ -31,24 +33,41 @@ function ShootingDayDetailPage() {
     const loadData = async () => {
       try {
         setLoading(true)
-        const [shootingDayData, assignedScenesData, allScenesData, charactersData, costumesData] = await Promise.all([
-          getShootingDayById(id),
-          getScenesByShootingDay(id),
-          getScenes(),
-          getCharacters(),
-          getCostumes()
-        ])
-        
+
+        const shootingDayData = await getShootingDayById(id)
+
         if (!shootingDayData) {
           setError('Shooting day not found')
           return
         }
-        
+
         setShootingDay(shootingDayData)
+
+        const assignedScenesData = await getScenesByShootingDay(id)
         setAssignedScenes(assignedScenesData)
-        setCharacters(charactersData)
-        setCostumes(costumesData)
-        
+
+        // Load project-filtered data
+        if (currentProjectId) {
+          const [allScenesData, charactersData, costumesData] = await Promise.all([
+            getScenesByProject(currentProjectId),
+            getCharactersByProject(currentProjectId),
+            getCostumesByProject(currentProjectId)
+          ])
+
+          setCharacters(charactersData)
+          setCostumes(costumesData)
+
+          // Set available scenes (scenes not assigned to this shooting day)
+          const unassignedScenes = allScenesData.filter(scene =>
+            !assignedScenesData.some(assignedScene => assignedScene.id === scene.id)
+          )
+          setAvailableScenes(unassignedScenes)
+        } else {
+          setCharacters([])
+          setCostumes([])
+          setAvailableScenes([])
+        }
+
         // Initialize edit data
         setEditData({
           date: shootingDayData.date || '',
@@ -56,12 +75,6 @@ function ShootingDayDetailPage() {
           name: shootingDayData.name || '',
           notes: shootingDayData.notes || ''
         })
-        
-        // Set available scenes (scenes not assigned to this shooting day)
-        const unassignedScenes = allScenesData.filter(scene => 
-          !assignedScenesData.some(assignedScene => assignedScene.id === scene.id)
-        )
-        setAvailableScenes(unassignedScenes)
         
       } catch (err) {
         console.error('Error loading shooting day:', err)
@@ -74,7 +87,7 @@ function ShootingDayDetailPage() {
     if (id) {
       loadData()
     }
-  }, [id])
+  }, [id, currentProjectId])
 
   const handleSave = async () => {
     try {

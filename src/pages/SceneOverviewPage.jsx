@@ -4,14 +4,16 @@ import { Link } from 'react-router-dom'
 import {
   addScene,
   addShootingDay,
-  getScenes$,
-  getShootingDays$,
-  getCharacters$,
-  getCostumes$,
+  getScenesByProject$,
+  getShootingDaysByProject$,
+  getCharactersByProject$,
+  getCostumesByProject$,
   getDatabase,
 } from '../services/database'
+import { useProject } from '../contexts/ProjectContext.jsx'
 
 function SceneOverviewPage() {
+  const { currentProjectId } = useProject()
   const [scenes, setScenes] = useState([])
   const [shootingDays, setShootingDays] = useState([])
   const [characters, setCharacters] = useState([])
@@ -28,31 +30,40 @@ function SceneOverviewPage() {
 
         await getDatabase();
 
-        // Subscribe to reactive queries that automatically update when data changes
-        const scenesObservable = await getScenes$()
-        const scenesSub = scenesObservable.subscribe(scenesData => {
-          setScenes(scenesData)
+        if (currentProjectId) {
+          // Subscribe to reactive queries that automatically update when data changes
+          const scenesObservable = await getScenesByProject$(currentProjectId)
+          const scenesSub = scenesObservable.subscribe(scenesData => {
+            setScenes(scenesData)
+            setLoading(false)
+          })
+          subscriptions.push(scenesSub)
+
+          const shootingDaysObservable = await getShootingDaysByProject$(currentProjectId)
+          const shootingDaysSub = shootingDaysObservable.subscribe(shootingDaysData => {
+            setShootingDays(shootingDaysData)
+          })
+          subscriptions.push(shootingDaysSub)
+
+          const charactersObservable = await getCharactersByProject$(currentProjectId)
+          const charactersSub = charactersObservable.subscribe(charactersData => {
+            setCharacters(charactersData)
+          })
+          subscriptions.push(charactersSub)
+
+          const costumesObservable = await getCostumesByProject$(currentProjectId)
+          const costumesSub = costumesObservable.subscribe(costumesData => {
+            setCostumes(costumesData)
+          })
+          subscriptions.push(costumesSub)
+        } else {
+          // No project selected
+          setScenes([])
+          setShootingDays([])
+          setCharacters([])
+          setCostumes([])
           setLoading(false)
-        })
-        subscriptions.push(scenesSub)
-
-        const shootingDaysObservable = await getShootingDays$()
-        const shootingDaysSub = shootingDaysObservable.subscribe(shootingDaysData => {
-          setShootingDays(shootingDaysData)
-        })
-        subscriptions.push(shootingDaysSub)
-
-        const charactersObservable = await getCharacters$()
-        const charactersSub = charactersObservable.subscribe(charactersData => {
-          setCharacters(charactersData)
-        })
-        subscriptions.push(charactersSub)
-
-        const costumesObservable = await getCostumes$()
-        const costumesSub = costumesObservable.subscribe(costumesData => {
-          setCostumes(costumesData)
-        })
-        subscriptions.push(costumesSub)
+        }
 
       } catch (err) {
         console.error('Error loading data:', err)
@@ -67,9 +78,14 @@ function SceneOverviewPage() {
     return () => {
       subscriptions.forEach(sub => sub.unsubscribe())
     }
-  }, [])
+  }, [currentProjectId])
 
   const handleAddShootingDay = async () => {
+    if (!currentProjectId) {
+      alert('Please select or create a project first');
+      return;
+    }
+
     try {
       const tomorrow = new Date()
       tomorrow.setDate(tomorrow.getDate() + 1)
@@ -78,6 +94,7 @@ function SceneOverviewPage() {
       await addShootingDay({
         date: dateString,
         location: '',
+        projects: currentProjectId,
       })
       // No need to manually refresh - the subscription will handle it
     } catch (error) {
@@ -86,6 +103,11 @@ function SceneOverviewPage() {
   }
 
   const handleAddScene = async () => {
+    if (!currentProjectId) {
+      alert('Please select or create a project first');
+      return;
+    }
+
     try {
       // Find the next scene number
       const maxSceneNumber = scenes.length > 0
@@ -97,7 +119,8 @@ function SceneOverviewPage() {
         shootingDay: null,
         location: '',
         characters: [],
-        costumes: []
+        costumes: [],
+        projects: currentProjectId,
       })
       // No need to manually refresh - the subscription will handle it
     } catch (error) {

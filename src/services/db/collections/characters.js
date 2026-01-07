@@ -34,6 +34,11 @@ export const characterSchema = {
         type: 'string',
       },
     },
+    projects: {
+      type: ['string', 'null'],
+      ref: 'projects',
+      default: null,
+    },
     createdAt: {
       type: 'number',
     },
@@ -56,7 +61,8 @@ const crud = createCRUDOperations(() => getDb(), 'characters', 'Character', {
   description: '',
   actor: '',
   notes: '',
-  scenes: []
+  scenes: [],
+  projects: null
 }, { useTimestamps: true });
 
 // Export CRUD operations directly
@@ -81,6 +87,22 @@ export async function getCharacters$() {
   );
 }
 
+// Get characters by project ID
+export async function getCharactersByProject(projectId) {
+  const db = await getDb();
+  const characters = await db.characters.find({ selector: { projects: projectId } }).exec();
+  return characters.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Get characters by project as observable
+export async function getCharactersByProject$(projectId) {
+  const db = await getDb();
+  const observable = db.characters.find({ selector: { projects: projectId } }).$;
+  return observable.pipe(
+    map(characters => characters.sort((a, b) => a.name.localeCompare(b.name)))
+  );
+}
+
 // Replication configuration
 export function createCharacterReplication(collection, client, databaseId) {
   const replicationState = replicateAppwrite({
@@ -98,8 +120,15 @@ export function createCharacterReplication(collection, client, databaseId) {
       modifier: (doc) => {
         // Add timestamps if missing (coming from Appwrite)
         const now = Date.now();
+
+        // Handle Appwrite relationships - extract IDs if nested objects, otherwise keep as-is
+        const projects = typeof doc.projects === 'object' && doc.projects !== null
+          ? doc.projects.$id || null
+          : doc.projects;
+
         return {
           ...doc,
+          projects,
           createdAt: (doc.createdAt !== null && doc.createdAt !== undefined) ? doc.createdAt : now,
           updatedAt: (doc.updatedAt !== null && doc.updatedAt !== undefined) ? doc.updatedAt : now,
         };
@@ -110,14 +139,24 @@ export function createCharacterReplication(collection, client, databaseId) {
       modifier: (doc) => {
         // Add timestamps if missing or null (going to Appwrite)
         const now = Date.now();
-        const modified = {
-          ...doc,
+
+        // Explicitly only send fields that Appwrite expects
+        // This filters out RxDB internal fields like _deleted, _rev, _meta
+        const cleanDoc = {
+          id: doc.id,
+          name: doc.name,
+          description: doc.description || '',
+          actor: doc.actor || '',
+          notes: doc.notes || '',
+          scenes: doc.scenes || [],
+          projects: doc.projects || null,
           createdAt: (doc.createdAt !== null && doc.createdAt !== undefined) ? doc.createdAt : now,
           updatedAt: (doc.updatedAt !== null && doc.updatedAt !== undefined) ? doc.updatedAt : now,
         };
+
         console.log('[Characters Push Modifier] Before:', { createdAt: doc.createdAt, updatedAt: doc.updatedAt });
-        console.log('[Characters Push Modifier] After:', { createdAt: modified.createdAt, updatedAt: modified.updatedAt });
-        return modified;
+        console.log('[Characters Push Modifier] After:', { createdAt: cleanDoc.createdAt, updatedAt: cleanDoc.updatedAt });
+        return cleanDoc;
       }
     },
   });
