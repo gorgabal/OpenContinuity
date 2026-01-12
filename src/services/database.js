@@ -17,6 +17,18 @@ import { createConflictHandler } from './db/conflictHandler.js';
 let database = null;
 let initPromise = null;
 
+// Function to clear and reset database (called on logout)
+export async function clearDatabase() {
+  if (database) {
+    await database.remove();
+    database = null;
+    initPromise = null;
+  }
+  // Also reset sync state
+  syncState.started = false;
+  syncState.promise = null;
+}
+
 export async function initDatabase() {
   if (database) {
     return database;
@@ -80,22 +92,28 @@ export async function initDatabase() {
   return await initPromise;
 }
 
-let syncStarted = false;
+let syncState = { started: false, promise: null };
 
 export async function getDatabase() {
   if (!database) {
     await initDatabase();
   }
 
-  // Start sync automatically on first database access
-  if (!syncStarted) {
-    syncStarted = true;
-    DatabaseSyncAppwrite().catch(err => {
-      console.error('Failed to start Appwrite sync:', err);
-    });
+  return database;
+}
+
+// Separate function to start sync - should be called after database is ready
+export async function startDatabaseSync() {
+  if (syncState.started) {
+    return syncState.promise;
   }
 
-  return database;
+  syncState.started = true;
+  syncState.promise = DatabaseSyncAppwrite().catch(err => {
+    console.error('Failed to start Appwrite sync:', err);
+  });
+
+  return syncState.promise;
 }
 
 // Re-export all collection operations

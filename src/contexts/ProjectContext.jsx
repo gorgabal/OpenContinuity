@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { getProjects$, getProjectById, getDatabase } from '../services/database.js';
+import { getProjects$, getProjectById, getDatabase, startDatabaseSync } from '../services/database.js';
 
 const ProjectContext = createContext();
 
@@ -24,6 +24,9 @@ export function ProjectProvider({ children }) {
 
         // Ensure database is initialized
         await getDatabase();
+
+        // Start database sync and wait for initial sync to complete
+        await startDatabaseSync();
 
         // Subscribe to reactive projects query
         const projects$ = await getProjects$();

@@ -65,9 +65,8 @@ export function AuthProvider({ children }) {
 
     try {
       // Clear RxDB database
-      const { getDatabase } = await import('../services/database.js');
-      const db = await getDatabase();
-      await db.remove();
+      const { clearDatabase } = await import('../services/database.js');
+      await clearDatabase();
       console.log('RxDB database cleared');
     } catch (err) {
       console.warn('Failed to clear RxDB database:', err.message);
