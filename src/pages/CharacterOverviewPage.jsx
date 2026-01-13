@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Card, Button, Spinner } from 'flowbite-react'
 import { Link } from 'react-router-dom'
-import { getCharacters$, addCharacter, getCostumes, getDatabase } from '../services/database'
+import { getCharactersByProject$, addCharacter, getCostumesByProject, getDatabase } from '../services/database'
+import { useProject } from '../contexts/ProjectContext.jsx'
 
 function CharacterOverviewPage() {
+  const { currentProjectId } = useProject()
   const [characters, setCharacters] = useState([])
   const [costumes, setCostumes] = useState([])
   const [loading, setLoading] = useState(true)
@@ -18,18 +20,25 @@ function CharacterOverviewPage() {
 
         await getDatabase();
 
-        // Subscribe to reactive query for characters
-        const characters$ = await getCharacters$();
+        if (currentProjectId) {
+          // Subscribe to reactive query for characters in current project
+          const characters$ = await getCharactersByProject$(currentProjectId);
 
-        subscription = characters$.subscribe(charactersData => {
-          setCharacters(charactersData);
-          setError(null);
+          subscription = characters$.subscribe(charactersData => {
+            setCharacters(charactersData);
+            setError(null);
+            setLoading(false);
+          });
+
+          // Load costumes for current project
+          const costumesData = await getCostumesByProject(currentProjectId);
+          setCostumes(costumesData);
+        } else {
+          // No project selected
+          setCharacters([]);
+          setCostumes([]);
           setLoading(false);
-        });
-
-        // Load costumes (keeping as regular query for now)
-        const costumesData = await getCostumes();
-        setCostumes(costumesData);
+        }
 
       } catch (err) {
         console.error('Error loading characters:', err);
@@ -46,9 +55,14 @@ function CharacterOverviewPage() {
         subscription.unsubscribe();
       }
     };
-  }, [])
+  }, [currentProjectId])
 
   const handleAddCharacter = async () => {
+    if (!currentProjectId) {
+      alert('Please select or create a project first');
+      return;
+    }
+
     try {
       const now = Date.now();
       await addCharacter({
@@ -56,6 +70,7 @@ function CharacterOverviewPage() {
         description: '',
         actor: '',
         notes: '',
+        projects: currentProjectId,
         createdAt: now,
         updatedAt: now
       })

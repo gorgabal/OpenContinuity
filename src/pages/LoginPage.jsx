@@ -24,11 +24,21 @@ function LoginPage() {
 
       const account = new Account(client);
 
+      // Try to delete any existing session first (in case browser data was cleared but server session remains)
+      try {
+        await account.deleteSession('current');
+      } catch (err) {
+        // Ignore error if no session exists - this is expected on first login
+      }
+
       // Create email password session
       await account.createEmailPasswordSession(email, password);
 
-      // Set authentication flag to enable offline access
-      login();
+      // Get the user to retrieve their ID
+      const user = await account.get();
+
+      // Set authentication flag and user ID to enable offline access
+      login(user.$id);
 
       // Redirect to home page on successful login
       navigate('/');

@@ -27,15 +27,9 @@ export function createConflictHandler() {
       const local = input.newDocumentState;
       const remote = input.realMasterState;
 
-      // ALWAYS prefer local deletion (offline-first)
-      if (local._deleted || local.deleted) {
-        return local; // Local delete wins
-      }
-      
-      // If only remote is deleted, accept it
-      if (remote._deleted || remote.deleted) {
-        return remote;
-      }
+      // Deletion always wins (offline-first) - honor from either side
+      if (local._deleted || local.deleted) return local;
+      if (remote._deleted || remote.deleted) return remote;
 
       // Compare timestamps for non-deletion conflicts
       if (local.updatedAt && remote.updatedAt) {

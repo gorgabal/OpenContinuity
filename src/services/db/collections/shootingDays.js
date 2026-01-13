@@ -27,6 +27,11 @@ export const shootingDaySchema = {
       type: 'string',
       default: '',
     },
+    projects: {
+      type: ['string', 'null'],
+      ref: 'projects',
+      default: null,
+    },
     createdAt: {
       type: 'number',
     },
@@ -48,7 +53,8 @@ const crud = createCRUDOperations(() => getDb(), 'shootingday', 'Shooting day', 
   date: new Date().toISOString().split('T')[0],
   location: '',
   name: '',
-  notes: ''
+  notes: '',
+  projects: null
 }, { useTimestamps: true });
 
 // Export CRUD operations directly
@@ -74,6 +80,18 @@ export async function ensureDefaultShootingDay() {
   return existingShootingDays[0];
 }
 
+// Get shooting days by project ID
+export async function getShootingDaysByProject(projectId) {
+  const db = await getDb();
+  return await db.shootingday.find({ selector: { projects: projectId } }).exec();
+}
+
+// Get shooting days by project as observable
+export async function getShootingDaysByProject$(projectId) {
+  const db = await getDb();
+  return db.shootingday.find({ selector: { projects: projectId } }).$;
+}
+
 // Replication configuration
 export function createShootingDayReplication(collection, client, databaseId) {
   const replicationState = replicateAppwrite({
@@ -97,11 +115,17 @@ export function createShootingDayReplication(collection, client, databaseId) {
           normalizedDate = normalizedDate.split('T')[0];
         }
 
+        // Handle Appwrite relationships - extract IDs if nested objects, otherwise keep as-is
+        const projects = typeof doc.projects === 'object' && doc.projects !== null
+          ? doc.projects.$id || null
+          : doc.projects;
+
         return {
           ...doc,
           date: normalizedDate,
           name: doc.name || '',
           notes: doc.notes || '',
+          projects,
           createdAt: (doc.createdAt !== null && doc.createdAt !== undefined) ? doc.createdAt : now,
           updatedAt: (doc.updatedAt !== null && doc.updatedAt !== undefined) ? doc.updatedAt : now,
         };
@@ -114,7 +138,7 @@ export function createShootingDayReplication(collection, client, databaseId) {
 
         // Add timestamps if missing or null (going to Appwrite)
         const now = Date.now();
-        
+
         // Normalize date to YYYY-MM-DD format (remove time portion if present)
         let normalizedDate = doc.date;
         if (normalizedDate && normalizedDate.includes('T')) {
@@ -129,6 +153,7 @@ export function createShootingDayReplication(collection, client, databaseId) {
           location: doc.location || '',
           name: doc.name || '',
           notes: doc.notes || '',
+          projects: doc.projects || null,
           createdAt: (doc.createdAt !== null && doc.createdAt !== undefined) ? doc.createdAt : now,
           updatedAt: (doc.updatedAt !== null && doc.updatedAt !== undefined) ? doc.updatedAt : now,
         };

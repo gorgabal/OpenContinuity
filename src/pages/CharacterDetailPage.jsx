@@ -8,12 +8,14 @@ import {
   getCostumesByCharacterId,
   assignCostumeToCharacter,
   unassignCostumeFromCharacter,
-  getCostumes
+  getCostumesByProject
 } from '../services/database'
+import { useProject } from '../contexts/ProjectContext.jsx'
 
 function CharacterDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { currentProjectId } = useProject()
   
   const [character, setCharacter] = useState(null)
   const [costumes, setCostumes] = useState([])
@@ -54,18 +56,23 @@ function CharacterDetailPage() {
           setLoading(false);
         });
 
-        // Load costumes (keeping these as regular queries for now)
-        const [characterCostumes, allCostumes] = await Promise.all([
-          getCostumesByCharacterId(id),
-          getCostumes()
-        ]);
+        // Load costumes filtered by current project
+        if (currentProjectId) {
+          const [characterCostumes, allCostumes] = await Promise.all([
+            getCostumesByCharacterId(id),
+            getCostumesByProject(currentProjectId)
+          ]);
 
-        setCostumes(characterCostumes);
+          setCostumes(characterCostumes);
 
-        const unassignedCostumes = allCostumes.filter(costume =>
-          !costume.character || costume.character === null
-        );
-        setAvailableCostumes(unassignedCostumes);
+          const unassignedCostumes = allCostumes.filter(costume =>
+            !costume.character || costume.character === null
+          );
+          setAvailableCostumes(unassignedCostumes);
+        } else {
+          setCostumes([]);
+          setAvailableCostumes([]);
+        }
 
       } catch (err) {
         console.error('Error loading character:', err);
@@ -82,7 +89,7 @@ function CharacterDetailPage() {
         subscription.unsubscribe();
       }
     };
-  }, [id])
+  }, [id, currentProjectId])
 
   // Sync editData with character when NOT editing
   useEffect(() => {

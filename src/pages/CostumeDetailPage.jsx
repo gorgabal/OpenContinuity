@@ -8,12 +8,14 @@ import {
   updateCostume,
   getCharacterById,
   getSceneById,
-  getCharacters,
-  getScenes,
+  getCharactersByProject,
+  getScenesByProject,
 } from '../services/database.js';
+import { useProject } from '../contexts/ProjectContext.jsx';
 
 function CostumeDetailPage() {
   const { id } = useParams();
+  const { currentProjectId } = useProject();
   const [costume, setCostume] = useState(null);
   const [character, setCharacter] = useState(null);
   const [assignedScenes, setAssignedScenes] = useState([]);
@@ -48,11 +50,16 @@ function CostumeDetailPage() {
         const initialCostume = await getCostumeById(id);
         setCostume(initialCostume);
 
-        // Get all characters and scenes for dropdowns
-        const characters = await getCharacters();
-        const scenes = await getScenes();
-        setAllCharacters(characters);
-        setAllScenes(scenes);
+        // Get all characters and scenes for dropdowns (filtered by current project)
+        if (currentProjectId) {
+          const characters = await getCharactersByProject(currentProjectId);
+          const scenes = await getScenesByProject(currentProjectId);
+          setAllCharacters(characters);
+          setAllScenes(scenes);
+        } else {
+          setAllCharacters([]);
+          setAllScenes([]);
+        }
 
         // Get character if costume has one assigned
         if (initialCostume && initialCostume.character && initialCostume.character !== null) {
@@ -94,7 +101,7 @@ function CostumeDetailPage() {
         subscription.unsubscribe();
       }
     };
-  }, [id]);
+  }, [id, currentProjectId]);
 
   // Sync titleValue with costume.name when costume changes
   useEffect(() => {

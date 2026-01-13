@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import './index.css';
 
 import { AuthProvider, useAuth } from './contexts/AuthContext.jsx';
+import { ProjectProvider } from './contexts/ProjectContext.jsx';
 import MainNav from './assets/components/MainNavigation.jsx';
 import CostumeDetailPage from './pages/CostumeDetailPage.jsx';
 import SceneOverviewPage from './pages/SceneOverviewPage.jsx';
@@ -36,7 +37,7 @@ function App() {
       {!isAuthenticated ? (
         <LoginPage />
       ) : (
-        <>
+        <ProjectProvider>
           <MainNav />
           <Routes>
             <Route path="/" element={<Navigate to="/costumes" replace />} />
@@ -48,7 +49,7 @@ function App() {
             <Route path="scene/:id" element={<SceneDetailPage />} />
             <Route path="shootingday/:id" element={<ShootingDayDetailPage />} />
           </Routes>
-        </>
+        </ProjectProvider>
       )}
     </BrowserRouter>
   );
