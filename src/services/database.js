@@ -16,6 +16,7 @@ import { createConflictHandler } from './db/conflictHandler.js';
 
 let database = null;
 let initPromise = null;
+let replicationStates = null;
 
 // Function to clear and reset database (called on logout)
 export async function clearDatabase() {
@@ -27,6 +28,7 @@ export async function clearDatabase() {
   // Also reset sync state
   syncState.started = false;
   syncState.promise = null;
+  replicationStates = null;
 }
 
 export async function initDatabase() {
@@ -55,8 +57,8 @@ export async function initDatabase() {
       ignoreDuplicate: true, // FIXME: this should be set to false in production
     });
 
-    // Add collections
-    await database.addCollections({
+    // Define collections to add
+    const collectionsToAdd = {
       projects: {
         schema: projectSchema,
         conflictHandler: createConflictHandler(),
@@ -77,7 +79,20 @@ export async function initDatabase() {
         schema: characterSchema,
         conflictHandler: createConflictHandler(),
       },
-    });
+    };
+
+    // Only add collections that don't already exist
+    const collectionsToCreate = {};
+    for (const [collectionName, collectionConfig] of Object.entries(collectionsToAdd)) {
+      if (!database.collections[collectionName]) {
+        collectionsToCreate[collectionName] = collectionConfig;
+      }
+    }
+
+    // Add missing collections
+    if (Object.keys(collectionsToCreate).length > 0) {
+      await database.addCollections(collectionsToCreate);
+    }
 
     // Initialize collection operations with database getter
     initProjectOperations(getDatabase);
@@ -197,6 +212,15 @@ export async function DatabaseSyncAppwrite() {
     console.log(`Found ${existingProjectsCount} projects in local DB, skipping initial sync wait (offline support)`);
   }
 
+  // Store replication states globally for manual sync access
+  replicationStates = {
+    projects: projectsReplicationState,
+    characters: charactersReplicationState,
+    costumes: costumesReplicationState,
+    scenes: scenesReplicationState,
+    shootingdays: shootingDaysReplicationState,
+  };
+
   // Set up manual polling every 30 seconds
   const syncInterval = setInterval(() => {
     projectsReplicationState.reSync();
@@ -212,11 +236,23 @@ export async function DatabaseSyncAppwrite() {
   });
 
   return {
-    projects: projectsReplicationState,
-    characters: charactersReplicationState,
-    costumes: costumesReplicationState,
-    scenes: scenesReplicationState,
-    shootingdays: shootingDaysReplicationState,
+    ...replicationStates,
     syncInterval // Return interval ID so it can be cleared if needed
   };
+}
+
+// Function to manually trigger sync for a specific collection
+export function triggerSync(collectionName) {
+  if (!replicationStates) {
+    console.warn('Replication not initialized yet, cannot trigger sync');
+    return;
+  }
+
+  const replicationState = replicationStates[collectionName];
+  if (replicationState) {
+    console.log(`Triggering immediate sync for ${collectionName}`);
+    replicationState.reSync();
+  } else {
+    console.warn(`No replication state found for collection: ${collectionName}`);
+  }
 }

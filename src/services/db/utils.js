@@ -1,4 +1,5 @@
 // Shared database utilities
+import { triggerSync } from '../database.js';
 
 // UUID fallback for non-secure contexts
 export function generateUUID() {
@@ -45,7 +46,12 @@ export function createCRUDOperations(getDb, collectionName, entityName, defaultD
         ...data,
         ...(useTimestamps ? getTimestamps(true) : {}),
       };
-      return await db[collectionName].insert(document);
+      const result = await db[collectionName].insert(document);
+
+      // Trigger immediate sync to Appwrite
+      triggerSync(collectionName);
+
+      return result;
     },
 
     getAll: async () => {
@@ -83,9 +89,14 @@ export function createCRUDOperations(getDb, collectionName, entityName, defaultD
         }
       });
 
-      return await doc.update({
+      const result = await doc.update({
         $set: { ...cleanedData, ...(useTimestamps ? getTimestamps(false) : {}) }
       });
+
+      // Trigger immediate sync to Appwrite
+      triggerSync(collectionName);
+
+      return result;
     },
 
     delete: async (id) => {
@@ -94,7 +105,12 @@ export function createCRUDOperations(getDb, collectionName, entityName, defaultD
       if (!doc) {
         throw new Error(`${entityName} with id ${id} not found`);
       }
-      return await doc.remove();
+      const result = await doc.remove();
+
+      // Trigger immediate sync to Appwrite
+      triggerSync(collectionName);
+
+      return result;
     },
 
     findByQuery: async (selector) => {
