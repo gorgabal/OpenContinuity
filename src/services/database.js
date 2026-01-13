@@ -170,6 +170,33 @@ export async function DatabaseSyncAppwrite() {
   await scenesReplicationState.start();
   await shootingDaysReplicationState.start();
 
+  // Check if we have existing projects in local DB
+  const existingProjectsCount = await db.projects.count().exec();
+
+  if (existingProjectsCount === 0) {
+    // Local DB is empty - wait for initial sync to prevent duplicate default projects
+    // Use a timeout to avoid hanging forever if offline
+    console.log('Local DB is empty, waiting for initial projects sync from Appwrite...');
+
+    const timeoutPromise = new Promise((resolve) => {
+      setTimeout(() => {
+        console.warn('Initial sync timeout - proceeding anyway (may be offline)');
+        resolve('timeout');
+      }, 5000); // 5 second timeout
+    });
+
+    const syncResult = await Promise.race([
+      projectsReplicationState.awaitInitialReplication().then(() => 'completed'),
+      timeoutPromise
+    ]);
+
+    if (syncResult === 'completed') {
+      console.log('Initial projects sync completed');
+    }
+  } else {
+    console.log(`Found ${existingProjectsCount} projects in local DB, skipping initial sync wait (offline support)`);
+  }
+
   // Set up manual polling every 30 seconds
   const syncInterval = setInterval(() => {
     projectsReplicationState.reSync();

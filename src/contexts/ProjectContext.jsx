@@ -1,12 +1,14 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { getProjects$, getProjectById, getDatabase, startDatabaseSync } from '../services/database.js';
+import { getProjects$, getProjectById, getDatabase, startDatabaseSync, addProject, getProjects } from '../services/database.js';
+import { useAuth } from './AuthContext.jsx';
 
 const ProjectContext = createContext();
 
 const CURRENT_PROJECT_KEY = 'current_project_id';
 
 export function ProjectProvider({ children }) {
+  const { userId } = useAuth();
   const [currentProjectId, setCurrentProjectId] = useState(
     localStorage.getItem(CURRENT_PROJECT_KEY)
   );
@@ -27,6 +29,22 @@ export function ProjectProvider({ children }) {
 
         // Start database sync and wait for initial sync to complete
         await startDatabaseSync();
+
+        // Check if we need to create a default project BEFORE subscribing
+        const initialProjects = await getProjects();
+        if (initialProjects.length === 0 && userId) {
+          try {
+            console.log('No projects found, creating default project...');
+            await addProject({
+              name: 'Default Project',
+              description: '',
+              ownerId: userId,
+            });
+            console.log('Default project created successfully');
+          } catch (err) {
+            console.error('Failed to create default project:', err);
+          }
+        }
 
         // Subscribe to reactive projects query
         const projects$ = await getProjects$();
