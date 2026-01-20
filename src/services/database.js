@@ -12,6 +12,7 @@ import { characterSchema, initCharacterOperations, createCharacterReplication } 
 import { sceneSchema, initSceneOperations, createSceneReplication } from './db/collections/scenes.js';
 import { shootingDaySchema, initShootingDayOperations, createShootingDayReplication } from './db/collections/shootingDays.js';
 import { projectSchema, initProjectOperations, createProjectReplication } from './db/collections/projects.js';
+import { photoSchema, initPhotoOperations, createPhotoReplication } from './db/collections/photos.js';
 import { createConflictHandler } from './db/conflictHandler.js';
 
 let database = null;
@@ -79,6 +80,10 @@ export async function initDatabase() {
         schema: characterSchema,
         conflictHandler: createConflictHandler(),
       },
+      photos: {
+        schema: photoSchema,
+        conflictHandler: createConflictHandler(),
+      },
     };
 
     // Only add collections that don't already exist
@@ -100,6 +105,7 @@ export async function initDatabase() {
     initCharacterOperations(getDatabase);
     initSceneOperations(getDatabase);
     initShootingDayOperations(getDatabase);
+    initPhotoOperations(getDatabase);
 
     return database;
   })();
@@ -137,6 +143,7 @@ export * from './db/collections/costumes.js';
 export * from './db/collections/characters.js';
 export * from './db/collections/scenes.js';
 export * from './db/collections/shootingDays.js';
+export * from './db/collections/photos.js';
 
 export async function DatabaseSyncAppwrite() {
   const db = await getDatabase();
@@ -178,12 +185,19 @@ export async function DatabaseSyncAppwrite() {
     databaseId
   );
 
+  const photosReplicationState = createPhotoReplication(
+    db.photos,
+    client,
+    databaseId
+  );
+
   // Explicitly start replication to ensure it's running
   await projectsReplicationState.start();
   await charactersReplicationState.start();
   await costumesReplicationState.start();
   await scenesReplicationState.start();
   await shootingDaysReplicationState.start();
+  await photosReplicationState.start();
 
   // Check if we have existing projects in local DB
   const existingProjectsCount = await db.projects.count().exec();
@@ -219,6 +233,7 @@ export async function DatabaseSyncAppwrite() {
     costumes: costumesReplicationState,
     scenes: scenesReplicationState,
     shootingdays: shootingDaysReplicationState,
+    photos: photosReplicationState,
   };
 
   // Set up manual polling every 30 seconds
@@ -228,6 +243,7 @@ export async function DatabaseSyncAppwrite() {
     costumesReplicationState.reSync();
     scenesReplicationState.reSync();
     shootingDaysReplicationState.reSync();
+    photosReplicationState.reSync();
   }, 30000); // 30 seconds
 
   // Clean up interval when database is destroyed or page unloads
