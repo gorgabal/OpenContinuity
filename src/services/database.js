@@ -13,6 +13,7 @@ import { sceneSchema, initSceneOperations, createSceneReplication } from './db/c
 import { shootingDaySchema, initShootingDayOperations, createShootingDayReplication } from './db/collections/shootingDays.js';
 import { projectSchema, initProjectOperations, createProjectReplication } from './db/collections/projects.js';
 import { photoSchema, initPhotoOperations, createPhotoReplication } from './db/collections/photos.js';
+import { photoFileSchema, initPhotoFileOperations } from './db/collections/photoFiles.js';
 import { createConflictHandler } from './db/conflictHandler.js';
 
 let database = null;
@@ -44,6 +45,16 @@ export async function initDatabase() {
 
   // Start initialization
   initPromise = (async () => {
+    // Request persistent storage to prevent automatic eviction
+    if (navigator.storage && navigator.storage.persist) {
+      const isPersisted = await navigator.storage.persist();
+      if (isPersisted) {
+        console.log('Persistent storage granted - data will not be automatically evicted');
+      } else {
+        console.warn('Persistent storage denied - data may be evicted during storage pressure');
+      }
+    }
+
     // Add plugins
     addRxPlugin(RxDBDevModePlugin);
     addRxPlugin(RxDBUpdatePlugin);
@@ -55,7 +66,6 @@ export async function initDatabase() {
       storage: wrappedValidateAjvStorage({
         storage: getRxStorageDexie(),
       }),
-      ignoreDuplicate: true, // FIXME: this should be set to false in production
     });
 
     // Define collections to add
@@ -84,6 +94,10 @@ export async function initDatabase() {
         schema: photoSchema,
         conflictHandler: createConflictHandler(),
       },
+      photofiles: {
+        schema: photoFileSchema,
+        // No conflict handler - this is local-only, not synced
+      },
     };
 
     // Only add collections that don't already exist
@@ -106,6 +120,7 @@ export async function initDatabase() {
     initSceneOperations(getDatabase);
     initShootingDayOperations(getDatabase);
     initPhotoOperations(getDatabase);
+    initPhotoFileOperations(getDatabase);
 
     return database;
   })();
@@ -144,6 +159,7 @@ export * from './db/collections/characters.js';
 export * from './db/collections/scenes.js';
 export * from './db/collections/shootingDays.js';
 export * from './db/collections/photos.js';
+export * from './db/collections/photoFiles.js';
 
 export async function DatabaseSyncAppwrite() {
   const db = await getDatabase();

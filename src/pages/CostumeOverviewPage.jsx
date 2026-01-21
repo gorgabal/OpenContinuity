@@ -7,6 +7,7 @@ import {
   getCostumesByProject$,
   addCostume,
   getCharactersByProject,
+  getPhotoWithFile,
 } from '../services/database.js';
 import { useProject } from '../contexts/ProjectContext.jsx';
 
@@ -14,6 +15,7 @@ function CostumeOverviewPage() {
   const { currentProjectId } = useProject();
   const [costumes, setCostumes] = useState([]);
   const [characters, setCharacters] = useState([]);
+  const [photoPreviewMap, setPhotoPreviewMap] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -63,6 +65,38 @@ function CostumeOverviewPage() {
       }
     };
   }, [currentProjectId]);
+
+  // Load photo previews for costumes
+  useEffect(() => {
+    const loadPhotoPreview = async () => {
+      // Collect photo IDs that need to be loaded
+      const photoIdsToLoad = costumes
+        .filter(costume => costume.photos && costume.photos.length > 0)
+        .map(costume => costume.photos[costume.photos.length - 1]);
+
+      if (photoIdsToLoad.length === 0) return;
+
+      // Load photos and update state, checking for duplicates inside the updater
+      for (const photoId of photoIdsToLoad) {
+        try {
+          const photoData = await getPhotoWithFile(photoId);
+          if (photoData && photoData.imageBlob) {
+            setPhotoPreviewMap(prev => {
+              // Skip if already loaded
+              if (prev[photoId]) return prev;
+              return { ...prev, [photoId]: photoData.imageBlob };
+            });
+          }
+        } catch (err) {
+          console.error(`Failed to load photo ${photoId}:`, err);
+        }
+      }
+    };
+
+    if (costumes.length > 0) {
+      loadPhotoPreview();
+    }
+  }, [costumes]);
 
   const handleAddCostume = async () => {
     if (!currentProjectId) {
@@ -118,23 +152,28 @@ function CostumeOverviewPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {costumes.map(costume => {
-            // Get the last uploaded photo for preview
-            const lastPhoto = costume.photos && costume.photos.length > 0
-              ? costume.photos[costume.photos.length - 1]
+            // Get the last uploaded photo ID for preview
+            const lastPhotoId =
+              costume.photos && costume.photos.length > 0
+                ? costume.photos[costume.photos.length - 1]
+                : null;
+            const lastPhotoBlob = lastPhotoId
+              ? photoPreviewMap[lastPhotoId]
               : null;
 
             // Find the character name by ID
-            const character = characters && characters.length > 0
-              ? characters.find(c => c.id === costume.character)
-              : null;
+            const character =
+              characters && characters.length > 0
+                ? characters.find(c => c.id === costume.character)
+                : null;
             const characterName = character ? character.name : 'Not assigned';
 
             return (
               <Link key={costume.id} to={`/costumes/${costume.id}`}>
                 <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
-                  {lastPhoto && (
+                  {lastPhotoBlob && (
                     <img
-                      src={lastPhoto.data}
+                      src={lastPhotoBlob}
                       alt={costume.name}
                       className="rounded-t-lg h-48 w-full object-cover"
                     />
@@ -150,7 +189,8 @@ function CostumeOverviewPage() {
                   </p>
                   {costume.photos && costume.photos.length > 0 && (
                     <p className="font-normal text-gray-500 text-sm">
-                      {costume.photos.length} photo{costume.photos.length !== 1 ? 's' : ''}
+                      {costume.photos.length} photo
+                      {costume.photos.length !== 1 ? 's' : ''}
                     </p>
                   )}
                 </Card>

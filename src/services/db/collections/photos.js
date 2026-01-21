@@ -19,19 +19,10 @@ export const photoSchema = {
       type: ['string', 'null'],
       default: null,
     },
-    deleted: {
-      type: 'boolean',
-      default: false,
-    },
     syncStatus: {
       type: 'string',
       enum: ['pending', 'uploading', 'synced', 'error'],
       default: 'pending',
-    },
-    projects: {
-      type: ['string', 'null'],
-      ref: 'projects',
-      default: null,
     },
     createdAt: {
       type: 'number',
@@ -50,13 +41,17 @@ export function initPhotoOperations(getDatabaseFn) {
   getDb = getDatabaseFn;
 }
 
-const crud = createCRUDOperations(() => getDb(), 'photos', 'Photo', {
-  localFilename: '',
-  bucketUrl: null,
-  deleted: false,
-  syncStatus: 'pending',
-  projects: null,
-}, { useTimestamps: true });
+const crud = createCRUDOperations(
+  () => getDb(),
+  'photos',
+  'Photo',
+  {
+    localFilename: '',
+    bucketUrl: null,
+    syncStatus: 'pending',
+  },
+  { useTimestamps: true },
+);
 
 // Export CRUD operations directly
 export const addPhoto = crud.add;
@@ -64,6 +59,81 @@ export const getPhotoById = crud.getById;
 export const getPhotoById$ = crud.getById$;
 export const updatePhoto = crud.update;
 export const deletePhoto = crud.delete;
+
+// Helper to convert File/Blob to base64 string
+async function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// Add photo with file - stores metadata in photos collection and file in photofiles collection
+export async function addPhotoWithFile(file) {
+  const db = await getDb();
+
+  // Convert file to base64
+  const imageBlob = await fileToBase64(file);
+
+  // Create photo metadata
+  const photoMetadata = {
+    localFilename: file.name,
+    bucketUrl: null,
+    syncStatus: 'pending',
+  };
+
+  // Add photo metadata
+  const photo = await addPhoto(photoMetadata);
+
+  // Add photo file with same ID - clean up metadata on failure
+  try {
+    await db.photofiles.insert({
+      id: photo.id,
+      imageBlob,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  } catch (err) {
+    // Clean up orphaned photo metadata
+    await deletePhoto(photo.id);
+    throw err;
+  }
+
+  return photo;
+}
+
+// Get photo with its file data
+export async function getPhotoWithFile(photoId) {
+  const db = await getDb();
+  const photo = await getPhotoById(photoId);
+
+  if (!photo) {
+    return null;
+  }
+
+  const photoFile = await db.photofiles.findOne(photoId).exec();
+
+  return {
+    ...photo,
+    imageBlob: photoFile ? photoFile.imageBlob : null,
+  };
+}
+
+// Delete photo and its file
+export async function deletePhotoWithFile(photoId) {
+  const db = await getDb();
+
+  // Delete photo file first
+  const photoFile = await db.photofiles.findOne(photoId).exec();
+  if (photoFile) {
+    await photoFile.remove();
+  }
+
+  // Delete photo metadata
+  return await deletePhoto(photoId);
+}
 
 // Get all photos sorted by creation date (newest first)
 export async function getPhotos() {
@@ -75,46 +145,30 @@ export async function getPhotos() {
 export async function getPhotos$() {
   const observable = await crud.getAll$();
   return observable.pipe(
-    map(photos => photos.sort((a, b) => b.createdAt - a.createdAt))
-  );
-}
-
-// Get photos by project ID
-export async function getPhotosByProject(projectId) {
-  const db = await getDb();
-  const photos = await db.photos.find({ selector: { projects: projectId, deleted: false } }).exec();
-  return photos.sort((a, b) => b.createdAt - a.createdAt);
-}
-
-// Get photos by project as observable
-export async function getPhotosByProject$(projectId) {
-  const db = await getDb();
-  const observable = db.photos.find({ selector: { projects: projectId, deleted: false } }).$;
-  return observable.pipe(
-    map(photos => photos.sort((a, b) => b.createdAt - a.createdAt))
+    map(photos => photos.sort((a, b) => b.createdAt - a.createdAt)),
   );
 }
 
 // Get photos pending upload (for sync controller)
 export async function getPendingPhotos() {
   const db = await getDb();
-  const photos = await db.photos.find({ 
-    selector: { 
-      syncStatus: { $in: ['pending', 'error'] },
-      deleted: false 
-    } 
-  }).exec();
+  const photos = await db.photos
+    .find({
+      selector: {
+        syncStatus: { $in: ['pending', 'error'] },
+      },
+    })
+    .exec();
   return photos;
 }
 
 // Get photos pending upload as observable
 export async function getPendingPhotos$() {
   const db = await getDb();
-  return db.photos.find({ 
-    selector: { 
+  return db.photos.find({
+    selector: {
       syncStatus: { $in: ['pending', 'error'] },
-      deleted: false 
-    } 
+    },
   }).$;
 }
 
@@ -132,21 +186,6 @@ export async function updatePhotoSyncStatus(id, syncStatus, bucketUrl = null) {
   return await doc.update({ $set: updateData });
 }
 
-// Soft delete a photo (marks as deleted for sync)
-export async function softDeletePhoto(id) {
-  const db = await getDb();
-  const doc = await db.photos.findOne(id).exec();
-  if (!doc) {
-    throw new Error(`Photo with id ${id} not found`);
-  }
-  return await doc.update({ 
-    $set: { 
-      deleted: true, 
-      updatedAt: Date.now() 
-    } 
-  });
-}
-
 // Replication configuration
 export function createPhotoReplication(collection, client, databaseId) {
   const replicationState = replicateAppwrite({
@@ -161,27 +200,30 @@ export function createPhotoReplication(collection, client, databaseId) {
     live: false,
     pull: {
       batchSize: 10,
-      modifier: (doc) => {
+      modifier: doc => {
         const now = Date.now();
 
-        // Handle Appwrite relationships - extract IDs if nested objects
-        const projects = typeof doc.projects === 'object' && doc.projects !== null
-          ? doc.projects.$id || null
-          : doc.projects;
-
+        // Only include fields that match our schema - don't spread doc
         return {
-          ...doc,
-          projects,
-          deleted: doc.deleted || false,
+          id: doc.id,
+          localFilename: doc.localFilename,
+          bucketUrl: doc.bucketUrl || null,
           syncStatus: doc.syncStatus || 'synced', // Assume synced if coming from Appwrite
-          createdAt: (doc.createdAt !== null && doc.createdAt !== undefined) ? doc.createdAt : now,
-          updatedAt: (doc.updatedAt !== null && doc.updatedAt !== undefined) ? doc.updatedAt : now,
+          createdAt:
+            doc.createdAt !== null && doc.createdAt !== undefined
+              ? doc.createdAt
+              : now,
+          updatedAt:
+            doc.updatedAt !== null && doc.updatedAt !== undefined
+              ? doc.updatedAt
+              : now,
+          _deleted: doc._deleted || false, // Required for RxDB replication
         };
-      }
+      },
     },
     push: {
       batchSize: 10,
-      modifier: (doc) => {
+      modifier: doc => {
         const now = Date.now();
 
         // Only send fields that Appwrite expects
@@ -189,25 +231,30 @@ export function createPhotoReplication(collection, client, databaseId) {
           id: doc.id,
           localFilename: doc.localFilename,
           bucketUrl: doc.bucketUrl || null,
-          deleted: doc.deleted || false,
           syncStatus: doc.syncStatus || 'pending',
-          projects: doc.projects || null,
-          createdAt: (doc.createdAt !== null && doc.createdAt !== undefined) ? doc.createdAt : now,
-          updatedAt: (doc.updatedAt !== null && doc.updatedAt !== undefined) ? doc.updatedAt : now,
+          createdAt:
+            doc.createdAt !== null && doc.createdAt !== undefined
+              ? doc.createdAt
+              : now,
+          updatedAt:
+            doc.updatedAt !== null && doc.updatedAt !== undefined
+              ? doc.updatedAt
+              : now,
         };
 
-        console.log('[Photos Push Modifier] Before:', { id: doc.id, syncStatus: doc.syncStatus });
-        console.log('[Photos Push Modifier] After:', { id: cleanDoc.id, syncStatus: cleanDoc.syncStatus });
         return cleanDoc;
-      }
+      },
     },
   });
 
-  // Monitor replication errors
+  // Monitor replication events
   replicationState.error$.subscribe(error => {
     console.error('[Photos Sync] Replication error:', error);
     if (error.parameters) {
-      console.error('[Photos Sync] Error parameters:', JSON.stringify(error.parameters, null, 2));
+      console.error(
+        '[Photos Sync] Error parameters:',
+        JSON.stringify(error.parameters, null, 2),
+      );
     }
   });
 

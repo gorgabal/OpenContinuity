@@ -28,6 +28,14 @@ export const costumeSchema = {
       },
       default: []
     },
+    photos: {
+      type: 'array',
+      ref: 'photos',
+      items: {
+        type: 'string'
+      },
+      default: []
+    },
     projects: {
       type: ['string', 'null'],
       ref: 'projects',
@@ -58,6 +66,7 @@ const crud = createCRUDOperations(() => getDb(), 'costumes', 'Costume', {
   name: 'New Costume',
   character: null,
   scenes: [],
+  photos: [],
   projects: null,
   notes: ''
 }, { useTimestamps: true });
@@ -100,24 +109,6 @@ export async function getCostumesWithCharacters() {
       return costume;
     })
   );
-}
-
-// Photo-related functions
-export async function addPhotoToCostume(costumeId, photoFile) {
-  throw new Error('Photo functionality not yet implemented. RxDB attachments are incompatible with Appwrite replication and need to be replaced with an alternative solution.');
-}
-
-export async function getPhotoUrl(costumeId, photoId) {
-  throw new Error('Photo functionality not yet implemented. RxDB attachments are incompatible with Appwrite replication and need to be replaced with an alternative solution.');
-}
-
-export async function removePhotoFromCostume(costumeId, photoId) {
-  throw new Error('Photo functionality not yet implemented. RxDB attachments are incompatible with Appwrite replication and need to be replaced with an alternative solution.');
-}
-
-// Get all photos for a costume
-export async function getAllPhotosForCostume(costumeId) {
-  throw new Error('Photo functionality not yet implemented. RxDB attachments are incompatible with Appwrite replication and need to be replaced with an alternative solution.');
 }
 
 // Get costumes by character ID
@@ -176,30 +167,20 @@ export function createCostumeReplication(collection, client, databaseId) {
           ? doc.scenes.map(s => s.$id || s)
           : doc.scenes;
 
+        const photos = Array.isArray(doc.photos) && doc.photos.length > 0 && typeof doc.photos[0] === 'object'
+          ? doc.photos.map(p => p.$id || p)
+          : doc.photos;
+
         const projects = typeof doc.projects === 'object' && doc.projects !== null
           ? doc.projects.$id || null
           : doc.projects;
 
-        // Convert Appwrite attachments JSON string back to RxDB _attachments object
-        let _attachments = {};
-        if (doc.attachments && typeof doc.attachments === 'string') {
-          try {
-            _attachments = JSON.parse(doc.attachments);
-          } catch (e) {
-            console.warn('[Costumes Pull] Failed to parse attachments JSON:', e);
-            _attachments = {};
-          }
-        }
-
-        // Remove the Appwrite attachments field and use the converted _attachments
-        const { attachments, ...docWithoutAttachments } = doc;
-
         return {
-          ...docWithoutAttachments,
+          ...doc,
           character,
           scenes,
+          photos,
           projects,
-          _attachments,
           createdAt: (doc.createdAt !== null && doc.createdAt !== undefined) ? doc.createdAt : now,
           updatedAt: (doc.updatedAt !== null && doc.updatedAt !== undefined) ? doc.updatedAt : now,
         };
@@ -208,38 +189,21 @@ export function createCostumeReplication(collection, client, databaseId) {
     push: {
       batchSize: 10,
       modifier: (doc) => {
-        debugger;
-        console.log('[Costumes Push Modifier] Input doc:', doc);
-
-        // Add timestamps if missing or null (going to Appwrite)
         const now = Date.now();
 
-        // Convert RxDB _attachments object to JSON string for Appwrite
-        let attachments = '';
-        if (doc._attachments && typeof doc._attachments === 'object') {
-          try {
-            attachments = JSON.stringify(doc._attachments);
-          } catch (e) {
-            console.warn('[Costumes Push] Failed to stringify _attachments:', e);
-            attachments = '{}';
-          }
-        }
-
         // Explicitly only send fields that Appwrite expects
-        // This filters out RxDB internal fields like _deleted, _rev, _meta, _attachments
         const cleanDoc = {
           id: doc.id,
           name: doc.name || '',
           character: doc.character || null,
           scenes: doc.scenes || [],
+          photos: doc.photos || [],
           projects: doc.projects || null,
           notes: doc.notes || '',
-          attachments: attachments,
           createdAt: (doc.createdAt !== null && doc.createdAt !== undefined) ? doc.createdAt : now,
           updatedAt: (doc.updatedAt !== null && doc.updatedAt !== undefined) ? doc.updatedAt : now,
         };
 
-        console.log('[Costumes Push Modifier] Output cleanDoc:', cleanDoc);
         return cleanDoc;
       }
     },
