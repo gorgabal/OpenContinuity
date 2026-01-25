@@ -5,6 +5,7 @@ import { wrappedValidateAjvStorage } from 'rxdb/plugins/validate-ajv';
 import { RxDBUpdatePlugin } from 'rxdb/plugins/update';
 import { RxDBAttachmentsPlugin } from 'rxdb/plugins/attachments';
 import { Client } from 'appwrite';
+import { BehaviorSubject, Subject } from 'rxjs';
 
 // Import schemas and replication functions
 import { costumeSchema, initCostumeOperations, createCostumeReplication } from './db/collections/costumes.js';
@@ -18,6 +19,27 @@ let database = null;
 let initPromise = null;
 let replicationStates = null;
 
+// BehaviorSubject to expose replication states reactively
+const replicationStates$ = new BehaviorSubject(null);
+
+// Subject to emit sync activity events
+const syncActivity$ = new Subject();
+
+// Export function to get replication states as observable
+export function getReplicationStates$() {
+  return replicationStates$.asObservable();
+}
+
+// Export function to get sync activity as observable
+export function getSyncActivity$() {
+  return syncActivity$.asObservable();
+}
+
+// Function to signal that sync is happening
+export function emitSyncActivity() {
+  syncActivity$.next({ type: 'sync', timestamp: Date.now() });
+}
+
 // Function to clear and reset database (called on logout)
 export async function clearDatabase() {
   if (database) {
@@ -29,6 +51,7 @@ export async function clearDatabase() {
   syncState.started = false;
   syncState.promise = null;
   replicationStates = null;
+  replicationStates$.next(null);
 }
 
 export async function initDatabase() {
@@ -83,7 +106,9 @@ export async function initDatabase() {
 
     // Only add collections that don't already exist
     const collectionsToCreate = {};
-    for (const [collectionName, collectionConfig] of Object.entries(collectionsToAdd)) {
+    for (const [collectionName, collectionConfig] of Object.entries(
+      collectionsToAdd,
+    )) {
       if (!database.collections[collectionName]) {
         collectionsToCreate[collectionName] = collectionConfig;
       }
@@ -151,31 +176,31 @@ export async function DatabaseSyncAppwrite() {
   const projectsReplicationState = createProjectReplication(
     db.projects,
     client,
-    databaseId
+    databaseId,
   );
 
   const charactersReplicationState = createCharacterReplication(
     db.characters,
     client,
-    databaseId
+    databaseId,
   );
 
   const costumesReplicationState = createCostumeReplication(
     db.costumes,
     client,
-    databaseId
+    databaseId,
   );
 
   const scenesReplicationState = createSceneReplication(
     db.scenes,
     client,
-    databaseId
+    databaseId,
   );
 
   const shootingDaysReplicationState = createShootingDayReplication(
     db.shootingday,
     client,
-    databaseId
+    databaseId,
   );
 
   // Explicitly start replication to ensure it's running
@@ -191,25 +216,33 @@ export async function DatabaseSyncAppwrite() {
   if (existingProjectsCount === 0) {
     // Local DB is empty - wait for initial sync to prevent duplicate default projects
     // Use a timeout to avoid hanging forever if offline
-    console.log('Local DB is empty, waiting for initial projects sync from Appwrite...');
+    console.log(
+      'Local DB is empty, waiting for initial projects sync from Appwrite...',
+    );
 
-    const timeoutPromise = new Promise((resolve) => {
+    const timeoutPromise = new Promise(resolve => {
       setTimeout(() => {
-        console.warn('Initial sync timeout - proceeding anyway (may be offline)');
+        console.warn(
+          'Initial sync timeout - proceeding anyway (may be offline)',
+        );
         resolve('timeout');
       }, 5000); // 5 second timeout
     });
 
     const syncResult = await Promise.race([
-      projectsReplicationState.awaitInitialReplication().then(() => 'completed'),
-      timeoutPromise
+      projectsReplicationState
+        .awaitInitialReplication()
+        .then(() => 'completed'),
+      timeoutPromise,
     ]);
 
     if (syncResult === 'completed') {
       console.log('Initial projects sync completed');
     }
   } else {
-    console.log(`Found ${existingProjectsCount} projects in local DB, skipping initial sync wait (offline support)`);
+    console.log(
+      `Found ${existingProjectsCount} projects in local DB, skipping initial sync wait (offline support)`,
+    );
   }
 
   // Store replication states globally for manual sync access
@@ -221,8 +254,12 @@ export async function DatabaseSyncAppwrite() {
     shootingdays: shootingDaysReplicationState,
   };
 
+  // Emit replication states to subscribers
+  replicationStates$.next(replicationStates);
+
   // Set up manual polling every 30 seconds
   const syncInterval = setInterval(() => {
+    emitSyncActivity();
     projectsReplicationState.reSync();
     charactersReplicationState.reSync();
     costumesReplicationState.reSync();
@@ -237,7 +274,7 @@ export async function DatabaseSyncAppwrite() {
 
   return {
     ...replicationStates,
-    syncInterval // Return interval ID so it can be cleared if needed
+    syncInterval, // Return interval ID so it can be cleared if needed
   };
 }
 
@@ -251,8 +288,26 @@ export function triggerSync(collectionName) {
   const replicationState = replicationStates[collectionName];
   if (replicationState) {
     console.log(`Triggering immediate sync for ${collectionName}`);
+    emitSyncActivity();
     replicationState.reSync();
   } else {
-    console.warn(`No replication state found for collection: ${collectionName}`);
+    console.warn(
+      `No replication state found for collection: ${collectionName}`,
+    );
   }
+}
+
+// Function to trigger sync for all collections (used after local writes)
+export function triggerSyncAll() {
+  if (!replicationStates) {
+    console.warn('Replication not initialized yet, cannot trigger sync');
+    return;
+  }
+
+  emitSyncActivity();
+  Object.values(replicationStates).forEach(state => {
+    if (state) {
+      state.reSync();
+    }
+  });
 }
