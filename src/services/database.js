@@ -262,9 +262,21 @@ export async function DatabaseSyncAppwrite() {
     photosReplicationState.reSync();
   }, 30000); // 30 seconds
 
+  // Start background photo sync to Appwrite Storage
+  // Use dynamic import to avoid circular dependency
+  let photoSyncCleanup = null;
+  import('./photoUpload.js').then(({ startPhotoSync }) => {
+    photoSyncCleanup = startPhotoSync();
+  }).catch(err => {
+    console.error('Failed to start photo sync:', err);
+  });
+
   // Clean up interval when database is destroyed or page unloads
   window.addEventListener('beforeunload', () => {
     clearInterval(syncInterval);
+    if (photoSyncCleanup) {
+      photoSyncCleanup();
+    }
   });
 
   return {
