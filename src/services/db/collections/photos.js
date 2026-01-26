@@ -1,5 +1,5 @@
 // Photo collection operations
-import { createCRUDOperations } from '../utils.js';
+import { createCRUDOperations, generateUUID } from '../utils.js';
 import { map } from 'rxjs/operators';
 import { replicateAppwrite } from 'rxdb/plugins/replication-appwrite';
 import { compressPhoto } from '../../photoCompression.js';
@@ -71,6 +71,12 @@ async function fileToBase64(file) {
   });
 }
 
+// Generate a unique filename from UUID
+function generatePhotoFilename(originalFilename, uuid) {
+  const extension = originalFilename.split('.').pop()?.toLowerCase() || 'jpg';
+  return `${uuid}.${extension}`;
+}
+
 // Add photo with file - stores metadata in photos collection and file in photofiles collection
 export async function addPhotoWithFile(file) {
   const db = await getDb();
@@ -81,9 +87,14 @@ export async function addPhotoWithFile(file) {
   // Convert compressed file to base64
   const imageBlob = await fileToBase64(compressedFile);
 
+  // Generate UUID upfront so we can use it for both ID and filename
+  const photoId = generateUUID();
+  const filename = generatePhotoFilename(file.name, photoId);
+
   // Create photo metadata
   const photoMetadata = {
-    localFilename: compressedFile.name,
+    id: photoId,
+    localFilename: filename,
     bucketUrl: null,
     syncStatus: 'pending',
   };
