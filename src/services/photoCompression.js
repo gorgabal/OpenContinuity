@@ -34,7 +34,6 @@ export async function compressPhoto(file) {
     );
 
     // Ensure the filename has .jpg extension since we convert to JPEG
-    // FIXME: check if this actually works with non-jpg files. Convert adjust where neccesary.
     const originalName = file.name.replace(/\.[^/.]+$/, '');
     const compressedWithName = new File(
       [compressedFile],

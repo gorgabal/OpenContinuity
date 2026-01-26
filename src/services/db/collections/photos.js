@@ -2,6 +2,7 @@
 import { createCRUDOperations } from '../utils.js';
 import { map } from 'rxjs/operators';
 import { replicateAppwrite } from 'rxdb/plugins/replication-appwrite';
+import { compressPhoto } from '../../photoCompression.js';
 
 export const photoSchema = {
   version: 0,
@@ -74,12 +75,15 @@ async function fileToBase64(file) {
 export async function addPhotoWithFile(file) {
   const db = await getDb();
 
-  // Convert file to base64
-  const imageBlob = await fileToBase64(file);
+  // Compress the image first
+  const compressedFile = await compressPhoto(file);
+
+  // Convert compressed file to base64
+  const imageBlob = await fileToBase64(compressedFile);
 
   // Create photo metadata
   const photoMetadata = {
-    localFilename: file.name,
+    localFilename: compressedFile.name,
     bucketUrl: null,
     syncStatus: 'pending',
   };
