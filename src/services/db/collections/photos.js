@@ -3,6 +3,7 @@ import { createCRUDOperations, generateUUID } from '../utils.js';
 import { map } from 'rxjs/operators';
 import { replicateAppwrite } from 'rxdb/plugins/replication-appwrite';
 import { compressPhoto } from '../../photoCompression.js';
+import { Client, Storage } from 'appwrite';
 
 export const photoSchema = {
   version: 0,
@@ -77,6 +78,70 @@ function generatePhotoFilename(originalFilename, uuid) {
   return `${uuid}.${extension}`;
 }
 
+// Helper to download photo from Appwrite Storage
+// TODO: maybe safe it as rxdb attachments instead?
+async function downloadPhotoFromAppwrite(photoId, bucketUrl) {
+  debugger;
+  // Check if user is authenticated
+  const authFlag = localStorage.getItem('appwrite_authenticated');
+  if (authFlag !== 'true') {
+    throw new Error('User not authenticated - cannot download from Appwrite');
+  }
+
+  // Check if online
+  if (!navigator.onLine) {
+    throw new Error('Offline - cannot download from Appwrite');
+  }
+
+  console.log('[Photo Download] Downloading:', photoId);
+
+  try {
+    // Get storage client
+    const client = new Client()
+      .setEndpoint(import.meta.env.VITE_APPWRITE_ENDPOINT)
+      .setProject(import.meta.env.VITE_APPWRITE_PROJECT_ID);
+    const storage = new Storage(client);
+    const bucketId = import.meta.env.VITE_APPWRITE_STORAGE_BUCKET_ID;
+
+    // Get the file URL if not provided
+    const fileUrl =
+      bucketUrl || storage.getFileView(bucketId, photoId).toString();
+
+    console.log('[Photo Download] Fetching from URL:', fileUrl);
+
+    // Fetch the file as a blob
+    // The fetch will include the Appwrite session cookie automatically
+    const response = await fetch(fileUrl, {
+      credentials: 'include', // Ensure cookies are sent
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const blob = await response.blob();
+
+    // Convert blob to base64
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+
+    console.log(
+      '[Photo Download] Success:',
+      photoId,
+      `${(blob.size / 1024).toFixed(1)}KB`,
+    );
+
+    return base64;
+  } catch (err) {
+    console.error('[Photo Download] Failed:', photoId, err);
+    throw err;
+  }
+}
+
 // Add photo with file - stores metadata in photos collection and file in photofiles collection
 export async function addPhotoWithFile(file) {
   const db = await getDb();
@@ -120,6 +185,7 @@ export async function addPhotoWithFile(file) {
 }
 
 // Get photo with its file data
+// If local blob is missing but photo is synced, download from Appwrite
 export async function getPhotoWithFile(photoId) {
   const db = await getDb();
   const photo = await getPhotoById(photoId);
@@ -128,7 +194,38 @@ export async function getPhotoWithFile(photoId) {
     return null;
   }
 
-  const photoFile = await db.photofiles.findOne(photoId).exec();
+  let photoFile = await db.photofiles.findOne(photoId).exec();
+
+  // If local file is missing but photo has a bucketUrl, download from Appwrite
+  if (!photoFile && photo.bucketUrl && photo.syncStatus === 'synced') {
+    console.log(
+      '[Photos] Local blob missing, downloading from Appwrite:',
+      photoId,
+    );
+
+    try {
+      const imageBlob = await downloadPhotoFromAppwrite(
+        photoId,
+        photo.bucketUrl,
+      );
+
+      // Store downloaded blob in local database
+      await db.photofiles.insert({
+        id: photoId,
+        imageBlob,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+
+      console.log('[Photos] Downloaded and stored locally:', photoId);
+
+      // Refetch the photo file
+      photoFile = await db.photofiles.findOne(photoId).exec();
+    } catch (err) {
+      console.error('[Photos] Failed to download from Appwrite:', photoId, err);
+      // Continue and return null imageBlob
+    }
+  }
 
   return {
     ...photo,

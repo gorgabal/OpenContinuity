@@ -171,6 +171,7 @@ let isSyncing = false;
 /**
  * Start the background photo sync process.
  * Runs every 30 seconds and also triggers when coming back online.
+ * Also downloads missing photos after initial sync.
  *
  * @returns {Function} - Cleanup function to stop the sync
  */
@@ -186,14 +187,21 @@ export function startPhotoSync() {
 
     isSyncing = true;
     try {
+      // Upload pending photos
       await syncPendingPhotos();
+
+      // Download missing photos (photos with bucketUrl but no local blob)
+      await downloadMissingPhotos();
     } finally {
       isSyncing = false;
     }
   };
 
-  // Run initial sync
-  runSync();
+  // Run initial sync (with a small delay to let metadata sync complete first)
+  // FIXME: DO NOT RELY ON DELAYS, LET COMPLETION OF METADATA SYNC DICTADE WHEN TO DOWNLOAD PHOTOS
+  setTimeout(() => {
+    runSync();
+  }, 2000); // 2 second delay
 
   // Set up interval (every 30 seconds)
   const intervalId = setInterval(runSync, 30000);
@@ -229,4 +237,83 @@ export async function triggerPhotoSync() {
   } finally {
     isSyncing = false;
   }
+}
+
+/**
+ * Download missing photos from Appwrite Storage.
+ * Checks for photos that have bucketUrl but no local blob.
+ *
+ * @returns {Promise<{downloaded: number, failed: number}>} - Download statistics
+ */
+
+//FIXME: downloadMissingPhotos, getPhotoWithFile, and downloadPhotoFromAppwrite don't have clear seperatino of concers yet. It is all kinda mixed together. Since photo's should always be avialable offline, individual photo-getting is pointless. Always rely on the sync for that.
+export async function downloadMissingPhotos() {
+  // Check if online
+  if (!navigator.onLine) {
+    console.log('[Photo Download] Offline, skipping photo download');
+    return { downloaded: 0, failed: 0, skipped: true };
+  }
+
+  // Check if user is authenticated
+  const authFlag = localStorage.getItem('appwrite_authenticated');
+  if (authFlag !== 'true') {
+    console.log('[Photo Download] Not authenticated, skipping photo download');
+    return { downloaded: 0, failed: 0, skipped: true };
+  }
+
+  const db = await getDatabase();
+
+  // Find photos that have bucketUrl but no local blob
+  const photosWithBucketUrl = await db.photos
+    .find({
+      selector: {
+        bucketUrl: { $ne: null },
+        syncStatus: 'synced',
+      },
+    })
+    .exec();
+
+  if (photosWithBucketUrl.length === 0) {
+    return { downloaded: 0, failed: 0, skipped: false };
+  }
+
+  console.log(
+    `[Photo Download] Found ${photosWithBucketUrl.length} photos with bucketUrl, checking for missing blobs...`,
+  );
+
+  let downloaded = 0;
+  let failed = 0;
+
+  // Check which photos are missing local blobs
+  for (const photo of photosWithBucketUrl) {
+    const photoFile = await db.photofiles.findOne(photo.id).exec();
+
+    // Skip if blob already exists locally
+    if (photoFile) {
+      continue;
+    }
+
+    // Download missing photo
+    try {
+      console.log('[Photo Download] Downloading missing photo:', photo.id);
+      const { getPhotoWithFile } = await import('./db/collections/photos.js');
+      await getPhotoWithFile(photo.id); // This will trigger the download and store it
+      downloaded++;
+    } catch (err) {
+      console.error(
+        '[Photo Download] Failed to download photo:',
+        photo.id,
+        err,
+      );
+      failed++;
+    }
+  }
+
+  if (downloaded > 0 || failed > 0) {
+    console.log(
+      `[Photo Download] Complete: ${downloaded} downloaded, ${failed} failed`,
+    );
+  }
+
+  return { downloaded, failed, skipped: false };
 }
