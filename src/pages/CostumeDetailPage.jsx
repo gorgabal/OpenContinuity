@@ -13,9 +13,7 @@ import {
 } from 'flowbite-react';
 import {
   initDatabase,
-  getCostumeById,
-  getCostumeById$,
-  updateCostume,
+  costumeCrud,
   getCharacterById,
   getSceneById,
   getCharactersByProject,
@@ -60,7 +58,7 @@ function CostumeDetailPage() {
         await initDatabase();
 
         // Get initial costume
-        const initialCostume = await getCostumeById(id);
+        const initialCostume = await costumeCrud.getById(id);
         setCostume(initialCostume);
 
         // Get all characters and scenes for dropdowns (filtered by current project)
@@ -104,7 +102,7 @@ function CostumeDetailPage() {
         }
 
         // Subscribe to costume changes for reactive updates
-        const costume$ = await getCostumeById$(id);
+        const costume$ = await costumeCrud.getById$(id);
         subscription = costume$.subscribe(updatedCostume => {
           setCostume(updatedCostume);
         });
@@ -172,7 +170,7 @@ function CostumeDetailPage() {
 
   const handleTitleSave = async () => {
     try {
-      await updateCostume(id, { name: titleValue });
+      await costumeCrud.update(id, { name: titleValue });
       setIsEditingTitle(false);
     } catch (err) {
       console.error('Failed to update title:', err);
@@ -199,7 +197,7 @@ function CostumeDetailPage() {
 
         // Add photo ID to costume's photos array
         const currentPhotoIds = costume.photos || [];
-        await updateCostume(id, { photos: [...currentPhotoIds, newPhoto.id] });
+        await costumeCrud.update(id, { photos: [...currentPhotoIds, newPhoto.id] });
         console.log('[Photo Upload] Updated costume with photo ID');
 
         // Manually trigger sync for immediate upload
@@ -229,7 +227,7 @@ function CostumeDetailPage() {
 
       // Remove photo ID from costume's photos array
       const currentPhotoIds = costume.photos || [];
-      await updateCostume(id, {
+      await costumeCrud.update(id, {
         photos: currentPhotoIds.filter(pid => pid !== photoId),
       });
 
@@ -249,7 +247,7 @@ function CostumeDetailPage() {
   const handleNotesChange = async event => {
     const newNotes = event.target.value;
     try {
-      await updateCostume(id, { notes: newNotes });
+      await costumeCrud.update(id, { notes: newNotes });
     } catch (err) {
       console.error('Failed to update notes:', err);
       setError(err.message);
@@ -274,7 +272,7 @@ function CostumeDetailPage() {
 
   const handleSaveAssignments = async () => {
     try {
-      await updateCostume(id, {
+      await costumeCrud.update(id, {
         character: editCharacterId || null,
         scenes: editSceneIds,
       });

@@ -5,7 +5,7 @@ import {
   getDatabase,
   getCostumesByProject,
   getCostumesByProject$,
-  addCostume,
+  costumeCrud,
   getCharactersByProject,
   getPhotoWithFile,
 } from '../services/database.js';
@@ -105,7 +105,7 @@ function CostumeOverviewPage() {
     }
 
     try {
-      await addCostume({
+      await costumeCrud.add({
         name: 'New Costume',
         projects: currentProjectId,
       });

@@ -8,7 +8,8 @@ import {
   getCostumesByCharacterId,
   assignCostumeToCharacter,
   unassignCostumeFromCharacter,
-  getCostumesByProject
+  getCostumesByProject,
+  costumeCrud,
 } from '../services/database'
 import { useProject } from '../contexts/ProjectContext.jsx'
 
@@ -170,7 +171,7 @@ function CharacterDetailPage() {
       // Refresh costume data
       const [updatedCostumes, allCostumes] = await Promise.all([
         getCostumesByCharacterId(id),
-        getCostumes()
+        costumeCrud.getAll()
       ])
       
       setCostumes(updatedCostumes)
@@ -189,7 +190,7 @@ function CharacterDetailPage() {
       // Refresh costume data
       const [updatedCostumes, allCostumes] = await Promise.all([
         getCostumesByCharacterId(id),
-        getCostumes()
+        costumeCrud.getAll()
       ])
       
       setCostumes(updatedCostumes)

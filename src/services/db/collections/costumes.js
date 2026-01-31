@@ -1,5 +1,5 @@
 // Costume collection operations
-import { createCRUDOperations, generateUUID, getTimestamps, getWithPopulated } from '../utils.js';
+import { createCRUDOperations, getWithPopulated } from '../utils.js';
 import { replicateAppwrite } from 'rxdb/plugins/replication-appwrite';
 
 export const costumeSchema = {
@@ -62,7 +62,7 @@ export function initCostumeOperations(getDatabaseFn) {
   getDb = getDatabaseFn;
 }
 
-const crud = createCRUDOperations(() => getDb(), 'costumes', 'Costume', {
+export const costumeCrud = createCRUDOperations(() => getDb(), 'costumes', 'Costume', {
   name: 'New Costume',
   character: null,
   scenes: [],
@@ -70,15 +70,6 @@ const crud = createCRUDOperations(() => getDb(), 'costumes', 'Costume', {
   projects: null,
   notes: ''
 }, { useTimestamps: true });
-
-// Export CRUD operations directly
-export const addCostume = crud.add;
-export const getCostumes = crud.getAll;
-export const getCostumeById = crud.getById;
-export const getCostumeById$ = crud.getById$;
-export const getCostumes$ = crud.getAll$;
-export const updateCostume = crud.update;
-export const deleteCostume = crud.delete;
 
 // Get costumes by project ID
 export async function getCostumesByProject(projectId) {
@@ -100,7 +91,7 @@ export async function getCostumeWithCharacter(id) {
 
 // Helper function to get all costumes with populated character references
 export async function getCostumesWithCharacters() {
-  const costumes = await crud.getAll();
+  const costumes = await costumeCrud.getAll();
   return await Promise.all(
     costumes.map(async (costume) => {
       if (costume.character) {
@@ -113,7 +104,7 @@ export async function getCostumesWithCharacters() {
 
 // Get costumes by character ID
 export async function getCostumesByCharacterId(characterId) {
-  const costumes = await crud.findByQuery({ character: characterId });
+  const costumes = await costumeCrud.findByQuery({ character: characterId });
   // Populate character reference for each costume
   return await Promise.all(
     costumes.map(async (costume) => {
@@ -133,12 +124,12 @@ export async function assignCostumeToCharacter(costumeId, characterId) {
     throw new Error(`Character with id ${characterId} not found`);
   }
 
-  return await crud.update(costumeId, { character: characterId });
+  return await costumeCrud.update(costumeId, { character: characterId });
 }
 
 // Unassign costume from character
 export async function unassignCostumeFromCharacter(costumeId) {
-  return await crud.update(costumeId, { character: null });
+  return await costumeCrud.update(costumeId, { character: null });
 }
 
 // Replication configuration
@@ -155,6 +146,8 @@ export function createCostumeReplication(collection, client, databaseId) {
     pull: {
       batchSize: 10,
       modifier: (doc) => {
+        console.log('[Costumes Pull Modifier] Input doc from Appwrite:', doc);
+
         // Add timestamps if missing (coming from Appwrite)
         const now = Date.now();
 
@@ -165,17 +158,17 @@ export function createCostumeReplication(collection, client, databaseId) {
 
         const scenes = Array.isArray(doc.scenes) && doc.scenes.length > 0 && typeof doc.scenes[0] === 'object'
           ? doc.scenes.map(s => s.$id || s)
-          : doc.scenes;
+          : (doc.scenes || []);
 
         const photos = Array.isArray(doc.photos) && doc.photos.length > 0 && typeof doc.photos[0] === 'object'
           ? doc.photos.map(p => p.$id || p)
-          : doc.photos;
+          : (doc.photos || []);
 
         const projects = typeof doc.projects === 'object' && doc.projects !== null
           ? doc.projects.$id || null
           : doc.projects;
 
-        return {
+        const result = {
           ...doc,
           character,
           scenes,
@@ -184,11 +177,16 @@ export function createCostumeReplication(collection, client, databaseId) {
           createdAt: (doc.createdAt !== null && doc.createdAt !== undefined) ? doc.createdAt : now,
           updatedAt: (doc.updatedAt !== null && doc.updatedAt !== undefined) ? doc.updatedAt : now,
         };
+
+        console.log('[Costumes Pull Modifier] Output to RxDB:', result);
+        return result;
       }
     },
     push: {
       batchSize: 10,
       modifier: (doc) => {
+        console.log('[Costumes Push Modifier] Input doc:', doc);
+
         const now = Date.now();
 
         // Explicitly only send fields that Appwrite expects
@@ -204,17 +202,10 @@ export function createCostumeReplication(collection, client, databaseId) {
           updatedAt: (doc.updatedAt !== null && doc.updatedAt !== undefined) ? doc.updatedAt : now,
         };
 
+        console.log('[Costumes Push Modifier] Output cleanDoc:', cleanDoc);
         return cleanDoc;
       }
     },
-  });
-
-  // Monitor replication errors
-  replicationState.error$.subscribe(error => {
-    console.error('[Costumes Sync] Replication error:', error);
-    if (error.parameters) {
-      console.error('[Costumes Sync] Error parameters:', JSON.stringify(error.parameters, null, 2));
-    }
   });
 
   return replicationState;
