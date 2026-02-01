@@ -56,7 +56,7 @@ export function initCharacterOperations(getDatabaseFn) {
   getDb = getDatabaseFn;
 }
 
-const crud = createCRUDOperations(() => getDb(), 'characters', 'Character', {
+export const characterCrud = createCRUDOperations(() => getDb(), 'characters', 'Character', {
   name: 'New Character',
   description: '',
   actor: '',
@@ -65,22 +65,15 @@ const crud = createCRUDOperations(() => getDb(), 'characters', 'Character', {
   projects: null
 }, { useTimestamps: true });
 
-// Export CRUD operations directly
-export const addCharacter = crud.add;
-export const getCharacterById = crud.getById;
-export const getCharacterById$ = crud.getById$;
-export const updateCharacter = crud.update;
-export const deleteCharacter = crud.delete;
-
 // Get all characters sorted by name
 export async function getCharacters() {
-  const characters = await crud.getAll();
+  const characters = await characterCrud.getAll();
   return characters.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 // Get all characters as observable (reactive)
 export async function getCharacters$() {
-  const observable = await crud.getAll$();
+  const observable = await characterCrud.getAll$();
   // Transform the observable to sort by name
   return observable.pipe(
     map(characters => characters.sort((a, b) => a.name.localeCompare(b.name)))

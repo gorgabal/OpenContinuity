@@ -49,7 +49,7 @@ export function initShootingDayOperations(getDatabaseFn) {
   getDb = getDatabaseFn;
 }
 
-const crud = createCRUDOperations(() => getDb(), 'shootingday', 'Shooting day', {
+export const shootingDayCrud = createCRUDOperations(() => getDb(), 'shootingday', 'Shooting day', {
   date: new Date().toISOString().split('T')[0],
   location: '',
   name: '',
@@ -57,21 +57,13 @@ const crud = createCRUDOperations(() => getDb(), 'shootingday', 'Shooting day', 
   projects: null
 }, { useTimestamps: true });
 
-// Export CRUD operations directly
-export const addShootingDay = crud.add;
-export const getShootingDays = crud.getAll;
-export const getShootingDayById = crud.getById;
-export const getShootingDayById$ = crud.getById$;
-export const getShootingDays$ = crud.getAll$;
-export const updateShootingDay = crud.update;
-
 // Create a default shooting day if none exist
 export async function ensureDefaultShootingDay() {
   const db = await getDb();
   const existingShootingDays = await db.shootingday.find().exec();
 
   if (existingShootingDays.length === 0) {
-    return await crud.add({
+    return await shootingDayCrud.add({
       date: new Date().toISOString().split('T')[0],
       location: 'Not specified'
     });

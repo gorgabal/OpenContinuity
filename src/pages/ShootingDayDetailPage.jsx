@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Card, Button, Spinner, TextInput, Textarea, Label, Select, Modal } from 'flowbite-react'
-import { getShootingDayById, updateShootingDay, getScenesByShootingDay, getCostumesByProject, getScenesByProject, updateScene, getCharactersByProject } from '../services/database'
+import { shootingDayCrud, sceneCrud, getScenesByShootingDay, getCostumesByProject, getScenesByProject, getCharactersByProject } from '../services/database'
 import { useProject } from '../contexts/ProjectContext.jsx'
 
 function ShootingDayDetailPage() {
@@ -34,7 +34,7 @@ function ShootingDayDetailPage() {
       try {
         setLoading(true)
 
-        const shootingDayData = await getShootingDayById(id)
+        const shootingDayData = await shootingDayCrud.getById(id)
 
         if (!shootingDayData) {
           setError('Shooting day not found')
@@ -95,10 +95,10 @@ function ShootingDayDetailPage() {
       setError(null)
       
       // Update shooting day details
-      await updateShootingDay(id, editData)
+      await shootingDayCrud.update(id, editData)
       
       // Refresh shooting day data
-      const updatedShootingDay = await getShootingDayById(id)
+      const updatedShootingDay = await shootingDayCrud.getById(id)
       setShootingDay(updatedShootingDay)
       setIsEditing(false)
       
@@ -124,7 +124,7 @@ function ShootingDayDetailPage() {
 
   const handleAssignScene = async (sceneId) => {
     try {
-      await updateScene(sceneId, { shootingDay: id })
+      await sceneCrud.update(sceneId, { shootingDay: id })
       
       // Refresh data
       const [updatedAssignedScenes, allScenesData] = await Promise.all([
@@ -149,7 +149,7 @@ function ShootingDayDetailPage() {
 
   const handleUnassignScene = async (sceneId) => {
     try {
-      await updateScene(sceneId, { shootingDay: null })
+      await sceneCrud.update(sceneId, { shootingDay: null })
       
       // Refresh data
       const [updatedAssignedScenes, allScenesData] = await Promise.all([

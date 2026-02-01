@@ -2,9 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Card, Button, Spinner, TextInput, Label, Textarea, Modal } from 'flowbite-react'
 import {
-  getCharacterById$,
-  updateCharacter,
-  deleteCharacter,
+  characterCrud,
   getCostumesByCharacterId,
   assignCostumeToCharacter,
   unassignCostumeFromCharacter,
@@ -43,7 +41,7 @@ function CharacterDetailPage() {
     const setupSubscription = async () => {
       try {
         // Subscribe to reactive query - this will auto-update when data changes
-        const character$ = await getCharacterById$(id);
+        const character$ = await characterCrud.getById$(id);
 
         subscription = character$.subscribe(characterData => {
           if (!characterData) {
@@ -122,7 +120,7 @@ function CharacterDetailPage() {
         updatedAt: Date.now()
       };
 
-      await updateCharacter(id, updatedData)
+      await characterCrud.update(id, updatedData)
 
       // Update local state immediately - don't wait for subscription
       setCharacter(prev => ({
@@ -155,7 +153,7 @@ function CharacterDetailPage() {
   const handleDelete = async () => {
     if (window.confirm(`Are you sure you want to delete the character "${character.name}"?`)) {
       try {
-        await deleteCharacter(id)
+        await characterCrud.delete(id)
         navigate('/characters')
       } catch (err) {
         console.error('Error deleting character:', err)

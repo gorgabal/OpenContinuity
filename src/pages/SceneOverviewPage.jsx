@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react'
 import { Card, Button } from 'flowbite-react'
 import { Link } from 'react-router-dom'
 import {
-  addScene,
-  addShootingDay,
+  sceneCrud,
+  shootingDayCrud,
   getScenesByProject$,
   getShootingDaysByProject$,
   getCharactersByProject$,
@@ -91,7 +91,7 @@ function SceneOverviewPage() {
       tomorrow.setDate(tomorrow.getDate() + 1)
       const dateString = tomorrow.toISOString().split('T')[0]
 
-      await addShootingDay({
+      await shootingDayCrud.add({
         date: dateString,
         location: '',
         projects: currentProjectId,
@@ -114,7 +114,7 @@ function SceneOverviewPage() {
         ? Math.max(...scenes.map(scene => scene.sceneNumber))
         : 0
 
-      await addScene({
+      await sceneCrud.add({
         sceneNumber: maxSceneNumber + 1,
         shootingDay: null,
         location: '',

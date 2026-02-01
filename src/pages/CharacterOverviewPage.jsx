@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Card, Button, Spinner } from 'flowbite-react'
 import { Link } from 'react-router-dom'
-import { getCharactersByProject$, addCharacter, getCostumesByProject, getDatabase } from '../services/database'
+import { getCharactersByProject$, characterCrud, getCostumesByProject, getDatabase } from '../services/database'
 import { useProject } from '../contexts/ProjectContext.jsx'
 
 function CharacterOverviewPage() {
@@ -65,7 +65,7 @@ function CharacterOverviewPage() {
 
     try {
       const now = Date.now();
-      await addCharacter({
+      await characterCrud.add({
         name: 'New Character',
         description: '',
         actor: '',

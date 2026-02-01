@@ -14,8 +14,8 @@ import {
 import {
   initDatabase,
   costumeCrud,
-  getCharacterById,
-  getSceneById,
+  characterCrud,
+  sceneCrud,
   getCharactersByProject,
   getScenesByProject,
   addPhotoWithFile,
@@ -78,7 +78,7 @@ function CostumeDetailPage() {
           initialCostume.character &&
           initialCostume.character !== null
         ) {
-          const characterData = await getCharacterById(
+          const characterData = await characterCrud.getById(
             initialCostume.character,
           );
           setCharacter(characterData);
@@ -93,7 +93,7 @@ function CostumeDetailPage() {
           initialCostume.scenes.length > 0
         ) {
           const sceneDataPromises = initialCostume.scenes.map(sceneId =>
-            getSceneById(sceneId),
+            sceneCrud.getById(sceneId),
           );
           const scenesData = await Promise.all(sceneDataPromises);
           setAssignedScenes(scenesData.filter(s => s !== null));
@@ -279,7 +279,7 @@ function CostumeDetailPage() {
 
       // Update the character display
       if (editCharacterId && editCharacterId !== null) {
-        const characterData = await getCharacterById(editCharacterId);
+        const characterData = await characterCrud.getById(editCharacterId);
         setCharacter(characterData);
       } else {
         setCharacter(null);
@@ -288,7 +288,7 @@ function CostumeDetailPage() {
       // Update the scenes display
       if (editSceneIds.length > 0) {
         const sceneDataPromises = editSceneIds.map(sceneId =>
-          getSceneById(sceneId),
+          sceneCrud.getById(sceneId),
         );
         const scenesData = await Promise.all(sceneDataPromises);
         setAssignedScenes(scenesData.filter(s => s !== null));

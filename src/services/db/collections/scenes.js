@@ -62,7 +62,7 @@ export function initSceneOperations(getDatabaseFn) {
   getDb = getDatabaseFn;
 }
 
-const crud = createCRUDOperations(() => getDb(), 'scenes', 'Scene', {
+export const sceneCrud = createCRUDOperations(() => getDb(), 'scenes', 'Scene', {
   sceneNumber: 1,
   shootingDay: null,
   location: '',
@@ -71,22 +71,15 @@ const crud = createCRUDOperations(() => getDb(), 'scenes', 'Scene', {
   projects: null
 }, { useTimestamps: true });
 
-// Export CRUD operations directly
-export const addScene = crud.add;
-export const getSceneById = crud.getById;
-export const getSceneById$ = crud.getById$;
-export const updateScene = crud.update;
-export const deleteScene = crud.delete;
-
 // Get all scenes sorted by scene number
 export async function getScenes() {
-  const scenes = await crud.getAll();
+  const scenes = await sceneCrud.getAll();
   return scenes.sort((a, b) => a.sceneNumber - b.sceneNumber);
 }
 
 // Get all scenes as observable (reactive)
 export async function getScenes$() {
-  const observable = await crud.getAll$();
+  const observable = await sceneCrud.getAll$();
   // Transform the observable to sort by scene number
   return observable.pipe(
     map(scenes => scenes.sort((a, b) => a.sceneNumber - b.sceneNumber))
@@ -95,7 +88,7 @@ export async function getScenes$() {
 
 // Get scenes by shooting day
 export async function getScenesByShootingDay(shootingDayId) {
-  const scenes = await crud.findByQuery({ shootingDay: shootingDayId });
+  const scenes = await sceneCrud.findByQuery({ shootingDay: shootingDayId });
   return scenes.sort((a, b) => a.sceneNumber - b.sceneNumber);
 }
 
