@@ -1,5 +1,5 @@
 // Character collection operations
-import { createCRUDOperations } from '../utils.js';
+import { createCRUDOperations } from '../database.js';
 import { map } from 'rxjs/operators';
 import { replicateAppwrite } from 'rxdb/plugins/replication-appwrite';
 
@@ -65,32 +65,31 @@ export const characterCrud = createCRUDOperations(() => getDb(), 'characters', '
   projects: null
 }, { useTimestamps: true });
 
-// Get all characters sorted by name
-export async function getCharacters() {
-  const characters = await characterCrud.getAll();
+// Get characters sorted by name, optionally filtered by project
+export async function getCharacters(projectId = null) {
+  const db = await getDb();
+  let characters;
+  
+  if (projectId) {
+    characters = await db.characters.find({ selector: { projects: projectId } }).exec();
+  } else {
+    characters = await characterCrud.getAll();
+  }
+  
   return characters.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-// Get all characters as observable (reactive)
-export async function getCharacters$() {
-  const observable = await characterCrud.getAll$();
-  // Transform the observable to sort by name
-  return observable.pipe(
-    map(characters => characters.sort((a, b) => a.name.localeCompare(b.name)))
-  );
-}
-
-// Get characters by project ID
-export async function getCharactersByProject(projectId) {
+// Get characters as observable (reactive), optionally filtered by project
+export async function getCharacters$(projectId = null) {
   const db = await getDb();
-  const characters = await db.characters.find({ selector: { projects: projectId } }).exec();
-  return characters.sort((a, b) => a.name.localeCompare(b.name));
-}
-
-// Get characters by project as observable
-export async function getCharactersByProject$(projectId) {
-  const db = await getDb();
-  const observable = db.characters.find({ selector: { projects: projectId } }).$;
+  let observable;
+  
+  if (projectId) {
+    observable = db.characters.find({ selector: { projects: projectId } }).$;
+  } else {
+    observable = await characterCrud.getAll$();
+  }
+  
   return observable.pipe(
     map(characters => characters.sort((a, b) => a.name.localeCompare(b.name)))
   );

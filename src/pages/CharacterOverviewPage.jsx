@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Card, Button, Spinner } from 'flowbite-react'
 import { Link } from 'react-router-dom'
-import { getCharactersByProject$, characterCrud, getCostumesByProject, getDatabase } from '../services/database'
+import { getCharacters$, characterCrud, getCostumesByProject, getDatabase } from '../services/db/database'
 import { useProject } from '../contexts/ProjectContext.jsx'
 
 function CharacterOverviewPage() {
@@ -22,7 +22,7 @@ function CharacterOverviewPage() {
 
         if (currentProjectId) {
           // Subscribe to reactive query for characters in current project
-          const characters$ = await getCharactersByProject$(currentProjectId);
+          const characters$ = await getCharacters$(currentProjectId);
 
           subscription = characters$.subscribe(charactersData => {
             setCharacters(charactersData);

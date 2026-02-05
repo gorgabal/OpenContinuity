@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Card, Button, Spinner, TextInput, Textarea, Label, Select, Modal } from 'flowbite-react'
-import { shootingDayCrud, sceneCrud, getScenesByShootingDay, getCostumesByProject, getScenesByProject, getCharactersByProject } from '../services/database'
+import { shootingDayCrud, sceneCrud, getScenesByShootingDay, getCostumesByProject, getScenesByProject, getCharacters } from '../services/db/database'
 import { useProject } from '../contexts/ProjectContext.jsx'
 
 function ShootingDayDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { currentProjectId } = useProject()
-  
+
   const [shootingDay, setShootingDay] = useState(null)
   const [assignedScenes, setAssignedScenes] = useState([])
   const [characters, setCharacters] = useState([])
@@ -18,7 +18,7 @@ function ShootingDayDetailPage() {
   const [error, setError] = useState(null)
   const [isEditing, setIsEditing] = useState(false)
   const [showAddSceneModal, setShowAddSceneModal] = useState(false)
-  
+
   const [editData, setEditData] = useState({
     date: '',
     location: '',
@@ -50,7 +50,7 @@ function ShootingDayDetailPage() {
         if (currentProjectId) {
           const [allScenesData, charactersData, costumesData] = await Promise.all([
             getScenesByProject(currentProjectId),
-            getCharactersByProject(currentProjectId),
+            getCharacters(currentProjectId),
             getCostumesByProject(currentProjectId)
           ])
 
@@ -75,7 +75,7 @@ function ShootingDayDetailPage() {
           name: shootingDayData.name || '',
           notes: shootingDayData.notes || ''
         })
-        
+
       } catch (err) {
         console.error('Error loading shooting day:', err)
         setError(err.message)
@@ -93,15 +93,15 @@ function ShootingDayDetailPage() {
     try {
       setSaving(true)
       setError(null)
-      
+
       // Update shooting day details
       await shootingDayCrud.update(id, editData)
-      
+
       // Refresh shooting day data
       const updatedShootingDay = await shootingDayCrud.getById(id)
       setShootingDay(updatedShootingDay)
       setIsEditing(false)
-      
+
     } catch (err) {
       console.error('Error saving shooting day:', err)
       setError(err.message)
@@ -125,21 +125,21 @@ function ShootingDayDetailPage() {
   const handleAssignScene = async (sceneId) => {
     try {
       await sceneCrud.update(sceneId, { shootingDay: id })
-      
+
       // Refresh data
       const [updatedAssignedScenes, allScenesData] = await Promise.all([
         getScenesByShootingDay(id),
         getScenes()
       ])
-      
+
       setAssignedScenes(updatedAssignedScenes)
-      
+
       // Update available scenes
-      const unassignedScenes = allScenesData.filter(scene => 
+      const unassignedScenes = allScenesData.filter(scene =>
         !updatedAssignedScenes.some(assignedScene => assignedScene.id === scene.id)
       )
       setAvailableScenes(unassignedScenes)
-      
+
       setShowAddSceneModal(false)
     } catch (err) {
       console.error('Error assigning scene:', err)
@@ -150,17 +150,17 @@ function ShootingDayDetailPage() {
   const handleUnassignScene = async (sceneId) => {
     try {
       await sceneCrud.update(sceneId, { shootingDay: null })
-      
+
       // Refresh data
       const [updatedAssignedScenes, allScenesData] = await Promise.all([
         getScenesByShootingDay(id),
         getScenes()
       ])
-      
+
       setAssignedScenes(updatedAssignedScenes)
-      
+
       // Update available scenes
-      const unassignedScenes = allScenesData.filter(scene => 
+      const unassignedScenes = allScenesData.filter(scene =>
         !updatedAssignedScenes.some(assignedScene => assignedScene.id === scene.id)
       )
       setAvailableScenes(unassignedScenes)
@@ -175,7 +175,7 @@ function ShootingDayDetailPage() {
     const allCharacterIds = assignedScenes
       .flatMap(scene => scene.characters || [])
       .filter(id => id)
-    
+
     return [...new Set(allCharacterIds)]
   }
 
@@ -339,7 +339,7 @@ function ShootingDayDetailPage() {
               <Button onClick={() => setShowAddSceneModal(true)}>Add Scene</Button>
             )}
           </div>
-          
+
           {assignedScenes.length === 0 ? (
             <Card>
               <p className="text-gray-500 text-center py-8">
@@ -386,9 +386,9 @@ function ShootingDayDetailPage() {
                   {/* Remove button */}
                   {isEditing && (
                     <div className="p-4 flex items-center">
-                      <Button 
-                        size="sm" 
-                        color="failure" 
+                      <Button
+                        size="sm"
+                        color="failure"
                         onClick={() => handleUnassignScene(scene.id)}
                       >
                         Remove
@@ -404,7 +404,7 @@ function ShootingDayDetailPage() {
         {/* Right column - Characters & Costumes */}
         <div className="space-y-4">
           <h2 className="text-xl font-bold mb-4">Characters & Costumes</h2>
-          
+
           {uniqueCharacterIds.length === 0 ? (
             <Card>
               <p className="text-gray-500 text-center py-8">
@@ -415,11 +415,11 @@ function ShootingDayDetailPage() {
             uniqueCharacterIds.map((characterId) => {
               const character = characters.find(c => c.id === characterId)
               if (!character) return null
-              
-              const characterCostumes = costumes.filter(costume => 
+
+              const characterCostumes = costumes.filter(costume =>
                 costume.character === character.id
               )
-              
+
               return (
                 <Card key={characterId}>
                   <Link to={`/characters/${character.id}`}>
@@ -427,7 +427,7 @@ function ShootingDayDetailPage() {
                       {character.name}
                     </h3>
                   </Link>
-                  
+
                   {characterCostumes.length === 0 ? (
                     <p className="text-gray-500">No costumes found for this character.</p>
                   ) : (
@@ -437,18 +437,18 @@ function ShootingDayDetailPage() {
                         const lastPhoto = costume.photos && costume.photos.length > 0
                           ? costume.photos[costume.photos.length - 1]
                           : null;
-                        
+
                         return (
                           <Link key={costume.id} to={`/costumes/${costume.id}`}>
                             <div className="hover:opacity-75 transition-opacity">
                               {lastPhoto ? (
-                                <img 
+                                <img
                                   src={lastPhoto.data}
                                   alt={costume.name}
                                   className="w-full h-auto rounded-lg shadow-md"
                                 />
                               ) : (
-                                <img 
+                                <img
                                   src="https://placehold.co/150x200"
                                   alt={costume.name}
                                   className="w-full h-auto rounded-lg shadow-md"
@@ -498,8 +498,8 @@ function ShootingDayDetailPage() {
                           </p>
                         )}
                       </div>
-                      <Button 
-                        size="sm" 
+                      <Button
+                        size="sm"
                         onClick={() => handleAssignScene(scene.id)}
                       >
                         Assign

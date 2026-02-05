@@ -6,10 +6,10 @@ import {
   shootingDayCrud,
   getScenesByProject$,
   getShootingDaysByProject$,
-  getCharactersByProject$,
+  getCharacters$,
   getCostumesByProject$,
   getDatabase,
-} from '../services/database'
+} from '../services/db/database'
 import { useProject } from '../contexts/ProjectContext.jsx'
 
 function SceneOverviewPage() {
@@ -45,7 +45,7 @@ function SceneOverviewPage() {
           })
           subscriptions.push(shootingDaysSub)
 
-          const charactersObservable = await getCharactersByProject$(currentProjectId)
+          const charactersObservable = await getCharacters$(currentProjectId)
           const charactersSub = charactersObservable.subscribe(charactersData => {
             setCharacters(charactersData)
           })

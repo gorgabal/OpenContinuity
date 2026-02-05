@@ -1,7 +1,7 @@
 // Photo upload service for Appwrite Storage
 // FIXME: upload works, download not yet
 import { Client, Storage } from 'appwrite';
-import { getDatabase } from './database.js';
+import { getDatabase } from './db/database.js';
 import {
   getPendingPhotos,
   updatePhotoSyncStatus,

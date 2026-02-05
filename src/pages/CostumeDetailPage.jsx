@@ -16,13 +16,13 @@ import {
   costumeCrud,
   characterCrud,
   sceneCrud,
-  getCharactersByProject,
+  getCharacters,
   getScenesByProject,
   addPhotoWithFile,
   getPhotoWithFile,
   deletePhotoWithFile,
   triggerSync,
-} from '../services/database.js';
+} from '../services/db/database.js';
 import { useProject } from '../contexts/ProjectContext.jsx';
 
 function CostumeDetailPage() {
@@ -63,7 +63,7 @@ function CostumeDetailPage() {
 
         // Get all characters and scenes for dropdowns (filtered by current project)
         if (currentProjectId) {
-          const characters = await getCharactersByProject(currentProjectId);
+          const characters = await getCharacters(currentProjectId);
           const scenes = await getScenesByProject(currentProjectId);
           setAllCharacters(characters);
           setAllScenes(scenes);

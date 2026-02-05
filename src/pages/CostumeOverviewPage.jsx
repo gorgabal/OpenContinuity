@@ -6,9 +6,9 @@ import {
   getCostumesByProject,
   getCostumesByProject$,
   costumeCrud,
-  getCharactersByProject,
+  getCharacters,
   getPhotoWithFile,
-} from '../services/database.js';
+} from '../services/db/database.js';
 import { useProject } from '../contexts/ProjectContext.jsx';
 
 function CostumeOverviewPage() {
@@ -32,7 +32,7 @@ function CostumeOverviewPage() {
         if (currentProjectId) {
           // Get initial costumes and characters for current project
           const initialCostumes = await getCostumesByProject(currentProjectId);
-          const allCharacters = await getCharactersByProject(currentProjectId);
+          const allCharacters = await getCharacters(currentProjectId);
           setCostumes(initialCostumes);
           setCharacters(allCharacters);
 

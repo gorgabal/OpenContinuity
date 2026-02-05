@@ -1,5 +1,5 @@
 // Project collection operations
-import { createCRUDOperations } from '../utils.js';
+import { createCRUDOperations } from '../database.js';
 import { replicateAppwrite } from 'rxdb/plugins/replication-appwrite';
 
 export const projectSchema = {

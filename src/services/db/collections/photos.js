@@ -1,5 +1,6 @@
 // Photo collection operations
-import { createCRUDOperations, generateUUID } from '../utils.js';
+import { createCRUDOperations } from '../database.js';
+import { generateUUID } from '../utils.js';
 import { map } from 'rxjs/operators';
 import { replicateAppwrite } from 'rxdb/plugins/replication-appwrite';
 import { compressPhoto } from '../../photoCompression.js';
@@ -81,7 +82,7 @@ function generatePhotoFilename(originalFilename, uuid) {
 // Helper to download photo from Appwrite Storage
 // TODO: maybe safe it as rxdb attachments instead?
 async function downloadPhotoFromAppwrite(photoId, bucketUrl) {
-  debugger;
+
   // Check if user is authenticated
   const authFlag = localStorage.getItem('appwrite_authenticated');
   if (authFlag !== 'true') {

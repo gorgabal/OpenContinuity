@@ -5,16 +5,17 @@ import { wrappedValidateAjvStorage } from 'rxdb/plugins/validate-ajv';
 import { RxDBUpdatePlugin } from 'rxdb/plugins/update';
 import { RxDBAttachmentsPlugin } from 'rxdb/plugins/attachments';
 import { Client } from 'appwrite';
+import { generateUUID, getTimestamps } from './utils.js';
 
 // Import schemas and replication functions
-import { costumeSchema, initCostumeOperations, createCostumeReplication } from './db/collections/costumes.js';
-import { characterSchema, initCharacterOperations, createCharacterReplication } from './db/collections/characters.js';
-import { sceneSchema, initSceneOperations, createSceneReplication } from './db/collections/scenes.js';
-import { shootingDaySchema, initShootingDayOperations, createShootingDayReplication } from './db/collections/shootingDays.js';
-import { projectSchema, initProjectOperations, createProjectReplication } from './db/collections/projects.js';
-import { photoSchema, initPhotoOperations, createPhotoReplication } from './db/collections/photos.js';
-import { photoFileSchema, initPhotoFileOperations } from './db/collections/photoFiles.js';
-import { createConflictHandler } from './db/conflictHandler.js';
+import { costumeSchema, initCostumeOperations, createCostumeReplication } from './collections/costumes.js';
+import { characterSchema, initCharacterOperations, createCharacterReplication } from './collections/characters.js';
+import { sceneSchema, initSceneOperations, createSceneReplication } from './collections/scenes.js';
+import { shootingDaySchema, initShootingDayOperations, createShootingDayReplication } from './collections/shootingDays.js';
+import { projectSchema, initProjectOperations, createProjectReplication } from './collections/projects.js';
+import { photoSchema, initPhotoOperations, createPhotoReplication } from './collections/photos.js';
+import { photoFileSchema, initPhotoFileOperations } from './collections/photoFiles.js';
+import { createConflictHandler } from './conflictHandler.js';
 
 let database = null;
 let initPromise = null;
@@ -153,13 +154,13 @@ export async function startDatabaseSync() {
 }
 
 // Re-export all collection operations
-export * from './db/collections/projects.js';
-export * from './db/collections/costumes.js';
-export * from './db/collections/characters.js';
-export * from './db/collections/scenes.js';
-export * from './db/collections/shootingDays.js';
-export * from './db/collections/photos.js';
-export * from './db/collections/photoFiles.js';
+export * from './collections/projects.js';
+export * from './collections/costumes.js';
+export * from './collections/characters.js';
+export * from './collections/scenes.js';
+export * from './collections/shootingDays.js';
+export * from './collections/photos.js';
+export * from './collections/photoFiles.js';
 
 export async function DatabaseSyncAppwrite() {
   const db = await getDatabase();
@@ -265,7 +266,7 @@ export async function DatabaseSyncAppwrite() {
   // Start background photo sync to Appwrite Storage
   // Use dynamic import to avoid circular dependency
   let photoSyncCleanup = null;
-  import('./photoUpload.js').then(({ startPhotoSync }) => {
+  import('../photoUpload.js').then(({ startPhotoSync }) => {
     photoSyncCleanup = startPhotoSync();
   }).catch(err => {
     console.error('Failed to start photo sync:', err);
@@ -299,4 +300,91 @@ export function triggerSync(collectionName) {
   } else {
     console.warn(`No replication state found for collection: ${collectionName}`);
   }
+}
+
+// Generic CRUD factory function
+export function createCRUDOperations(getDb, collectionName, entityName, defaultData = {}, options = {}) {
+  const { useTimestamps = true } = options;
+
+  return {
+    add: async (data = {}) => {
+      const db = await getDb();
+      const document = {
+        id: generateUUID(),
+        ...defaultData,
+        ...data,
+        ...(useTimestamps ? getTimestamps(true) : {}),
+      };
+      const result = await db[collectionName].insert(document);
+
+      // Trigger immediate sync to Appwrite
+      triggerSync(collectionName);
+
+      return result;
+    },
+
+    getAll: async () => {
+      const db = await getDb();
+      return await db[collectionName].find().exec();
+    },
+
+    getById: async (id) => {
+      const db = await getDb();
+      return await db[collectionName].findOne(id).exec();
+    },
+
+    getById$: async (id) => {
+      const db = await getDb();
+      return db[collectionName].findOne(id).$;
+    },
+
+    getAll$: async () => {
+      const db = await getDb();
+      return db[collectionName].find().$;
+    },
+
+    update: async (id, updateData) => {
+      const db = await getDb();
+      const doc = await db[collectionName].findOne(id).exec();
+      if (!doc) {
+        throw new Error(`${entityName} with id ${id} not found`);
+      }
+
+      // Remove null and undefined values to let defaults or required validation handle them
+      const cleanedData = {};
+      Object.keys(updateData).forEach(key => {
+        if (updateData[key] !== null && updateData[key] !== undefined) {
+          cleanedData[key] = updateData[key];
+        }
+      });
+
+      const result = await doc.update({
+        $set: { ...cleanedData, ...(useTimestamps ? getTimestamps(false) : {}) }
+      });
+
+      // Trigger immediate sync to Appwrite
+      triggerSync(collectionName);
+
+      return result;
+    },
+
+    delete: async (id) => {
+      const db = await getDb();
+      const doc = await db[collectionName].findOne(id).exec();
+      if (!doc) {
+        throw new Error(`${entityName} with id ${id} not found`);
+      }
+      const result = await doc.remove();
+
+      // Trigger immediate sync to Appwrite
+      triggerSync(collectionName);
+
+      return result;
+    },
+
+    findByQuery: async (selector) => {
+      const db = await getDb();
+      return await db[collectionName].find({ selector }).exec();
+    }
+  };
 }

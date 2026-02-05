@@ -1,5 +1,5 @@
 // Scene collection operations
-import { createCRUDOperations } from '../utils.js';
+import { createCRUDOperations } from '../database.js';
 import { map } from 'rxjs/operators';
 import { replicateAppwrite } from 'rxdb/plugins/replication-appwrite';
 

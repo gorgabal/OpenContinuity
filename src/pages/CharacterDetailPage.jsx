@@ -8,14 +8,14 @@ import {
   unassignCostumeFromCharacter,
   getCostumesByProject,
   costumeCrud,
-} from '../services/database'
+} from '../services/db/database'
 import { useProject } from '../contexts/ProjectContext.jsx'
 
 function CharacterDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { currentProjectId } = useProject()
-  
+
   const [character, setCharacter] = useState(null)
   const [costumes, setCostumes] = useState([])
   const [availableCostumes, setAvailableCostumes] = useState([])
@@ -24,7 +24,7 @@ function CharacterDetailPage() {
   const [error, setError] = useState(null)
   const [isEditing, setIsEditing] = useState(false)
   const [showAddCostumeModal, setShowAddCostumeModal] = useState(false)
-  
+
   const [editData, setEditData] = useState({
     name: '',
     description: '',
@@ -100,7 +100,7 @@ function CharacterDetailPage() {
           actor: character.actor || '',
           notes: character.notes || ''
         };
-        
+
         // Only update if data actually changed
         if (JSON.stringify(prev) !== JSON.stringify(newData)) {
           return newData;
@@ -165,13 +165,13 @@ function CharacterDetailPage() {
   const handleAssignCostume = async (costumeId) => {
     try {
       await assignCostumeToCharacter(costumeId, id)
-      
+
       // Refresh costume data
       const [updatedCostumes, allCostumes] = await Promise.all([
         getCostumesByCharacterId(id),
         costumeCrud.getAll()
       ])
-      
+
       setCostumes(updatedCostumes)
       setAvailableCostumes(allCostumes.filter(costume => !costume.character || costume.character === null))
       setShowAddCostumeModal(false)
@@ -184,13 +184,13 @@ function CharacterDetailPage() {
   const handleUnassignCostume = async (costumeId) => {
     try {
       await unassignCostumeFromCharacter(costumeId)
-      
+
       // Refresh costume data
       const [updatedCostumes, allCostumes] = await Promise.all([
         getCostumesByCharacterId(id),
         costumeCrud.getAll()
       ])
-      
+
       setCostumes(updatedCostumes)
       setAvailableCostumes(allCostumes.filter(costume => !costume.character || costume.character === null))
     } catch (err) {
@@ -362,18 +362,18 @@ function CharacterDetailPage() {
               const lastPhoto = costume.photos && costume.photos.length > 0
                 ? costume.photos[costume.photos.length - 1]
                 : null;
-              
+
               return (
                 <Card key={costume.id} className="relative">
                   <Link to={`/costumes/${costume.id}`}>
                     {lastPhoto ? (
-                      <img 
+                      <img
                         src={lastPhoto.data}
                         alt={costume.name}
                         className="w-full h-48 object-cover rounded"
                       />
                     ) : (
-                      <img 
+                      <img
                         src="https://placehold.co/400x300"
                         alt={costume.name}
                         className="w-full h-48 object-cover rounded"
@@ -415,18 +415,18 @@ function CharacterDetailPage() {
                   const lastPhoto = costume.photos && costume.photos.length > 0
                     ? costume.photos[costume.photos.length - 1]
                     : null;
-                  
+
                   return (
                     <Card key={costume.id} className="hover:bg-gray-50 transition-colors">
                       <div className="flex items-center space-x-4">
                         {lastPhoto ? (
-                          <img 
+                          <img
                             src={lastPhoto.data}
                             alt={costume.name}
                             className="w-16 h-20 object-cover rounded"
                           />
                         ) : (
-                          <img 
+                          <img
                             src="https://placehold.co/150x200"
                             alt={costume.name}
                             className="w-16 h-20 object-cover rounded"
@@ -438,8 +438,8 @@ function CharacterDetailPage() {
                             <p className="text-sm text-gray-600">Scene: {costume.scene}</p>
                           )}
                         </div>
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           onClick={() => handleAssignCostume(costume.id)}
                         >
                           Assign

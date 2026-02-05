@@ -1,5 +1,6 @@
 // Costume collection operations
-import { createCRUDOperations, getWithPopulated } from '../utils.js';
+import { createCRUDOperations } from '../database.js';
+import { getWithPopulated } from '../utils.js';
 import { replicateAppwrite } from 'rxdb/plugins/replication-appwrite';
 
 export const costumeSchema = {

@@ -1,6 +1,6 @@
 // PhotoFiles collection operations - LOCAL ONLY (not synced to Appwrite)
 // Stores actual image blobs in IndexedDB
-import { createCRUDOperations } from '../utils.js';
+import { createCRUDOperations } from '../database.js';
 
 export const photoFileSchema = {
   version: 0,
