@@ -72,14 +72,28 @@ export const sceneCrud = createCRUDOperations(() => getDb(), 'scenes', 'Scene', 
 }, { useTimestamps: true });
 
 // Get all scenes sorted by scene number
-export async function getScenes() {
-  const scenes = await sceneCrud.getAll();
+// If projectId is provided, filter by project
+export async function getScenes(projectId = null) {
+  const db = await getDb();
+  let scenes;
+  if (projectId) {
+    scenes = await db.scenes.find({ selector: { projects: projectId } }).exec();
+  } else {
+    scenes = await sceneCrud.getAll();
+  }
   return scenes.sort((a, b) => a.sceneNumber - b.sceneNumber);
 }
 
 // Get all scenes as observable (reactive)
-export async function getScenes$() {
-  const observable = await sceneCrud.getAll$();
+// If projectId is provided, filter by project
+export async function getScenes$(projectId = null) {
+  const db = await getDb();
+  let observable;
+  if (projectId) {
+    observable = db.scenes.find({ selector: { projects: projectId } }).$;
+  } else {
+    observable = await sceneCrud.getAll$();
+  }
   // Transform the observable to sort by scene number
   return observable.pipe(
     map(scenes => scenes.sort((a, b) => a.sceneNumber - b.sceneNumber))
@@ -92,21 +106,7 @@ export async function getScenesByShootingDay(shootingDayId) {
   return scenes.sort((a, b) => a.sceneNumber - b.sceneNumber);
 }
 
-// Get scenes by project ID
-export async function getScenesByProject(projectId) {
-  const db = await getDb();
-  const scenes = await db.scenes.find({ selector: { projects: projectId } }).exec();
-  return scenes.sort((a, b) => a.sceneNumber - b.sceneNumber);
-}
 
-// Get scenes by project as observable
-export async function getScenesByProject$(projectId) {
-  const db = await getDb();
-  const observable = db.scenes.find({ selector: { projects: projectId } }).$;
-  return observable.pipe(
-    map(scenes => scenes.sort((a, b) => a.sceneNumber - b.sceneNumber))
-  );
-}
 
 // Replication configuration
 export function createSceneReplication(collection, client, databaseId) {

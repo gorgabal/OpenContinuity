@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Card, Button, Spinner, TextInput, Textarea, Label, Select, Modal } from 'flowbite-react'
-import { shootingDayCrud, sceneCrud, getScenesByShootingDay, getCostumesByProject, getScenesByProject, getCharacters } from '../services/db/database'
+import { shootingDayCrud, sceneCrud, getScenesByShootingDay, getCostumes, getScenes, getCharacters } from '../services/db/database'
 import { useProject } from '../contexts/ProjectContext.jsx'
 
 function ShootingDayDetailPage() {
@@ -49,9 +49,9 @@ function ShootingDayDetailPage() {
         // Load project-filtered data
         if (currentProjectId) {
           const [allScenesData, charactersData, costumesData] = await Promise.all([
-            getScenesByProject(currentProjectId),
+            getScenes(currentProjectId),
             getCharacters(currentProjectId),
-            getCostumesByProject(currentProjectId)
+            getCostumes(currentProjectId)
           ])
 
           setCharacters(charactersData)

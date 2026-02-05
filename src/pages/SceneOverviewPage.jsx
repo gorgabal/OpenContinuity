@@ -4,10 +4,10 @@ import { Link } from 'react-router-dom'
 import {
   sceneCrud,
   shootingDayCrud,
-  getScenesByProject$,
-  getShootingDaysByProject$,
+  getScenes$,
+  getShootingDays$,
   getCharacters$,
-  getCostumesByProject$,
+  getCostumes$,
   getDatabase,
 } from '../services/db/database'
 import { useProject } from '../contexts/ProjectContext.jsx'
@@ -32,14 +32,14 @@ function SceneOverviewPage() {
 
         if (currentProjectId) {
           // Subscribe to reactive queries that automatically update when data changes
-          const scenesObservable = await getScenesByProject$(currentProjectId)
+          const scenesObservable = await getScenes$(currentProjectId)
           const scenesSub = scenesObservable.subscribe(scenesData => {
             setScenes(scenesData)
             setLoading(false)
           })
           subscriptions.push(scenesSub)
 
-          const shootingDaysObservable = await getShootingDaysByProject$(currentProjectId)
+          const shootingDaysObservable = await getShootingDays$(currentProjectId)
           const shootingDaysSub = shootingDaysObservable.subscribe(shootingDaysData => {
             setShootingDays(shootingDaysData)
           })
@@ -51,7 +51,7 @@ function SceneOverviewPage() {
           })
           subscriptions.push(charactersSub)
 
-          const costumesObservable = await getCostumesByProject$(currentProjectId)
+          const costumesObservable = await getCostumes$(currentProjectId)
           const costumesSub = costumesObservable.subscribe(costumesData => {
             setCostumes(costumesData)
           })

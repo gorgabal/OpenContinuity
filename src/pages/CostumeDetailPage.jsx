@@ -17,7 +17,7 @@ import {
   characterCrud,
   sceneCrud,
   getCharacters,
-  getScenesByProject,
+  getScenes,
   addPhotoWithFile,
   getPhotoWithFile,
   deletePhotoWithFile,
@@ -64,7 +64,7 @@ function CostumeDetailPage() {
         // Get all characters and scenes for dropdowns (filtered by current project)
         if (currentProjectId) {
           const characters = await getCharacters(currentProjectId);
-          const scenes = await getScenesByProject(currentProjectId);
+          const scenes = await getScenes(currentProjectId);
           setAllCharacters(characters);
           setAllScenes(scenes);
         } else {

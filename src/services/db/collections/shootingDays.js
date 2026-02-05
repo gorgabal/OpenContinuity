@@ -72,16 +72,22 @@ export async function ensureDefaultShootingDay() {
   return existingShootingDays[0];
 }
 
-// Get shooting days by project ID
-export async function getShootingDaysByProject(projectId) {
+// Get shooting days (optionally filtered by project ID)
+export async function getShootingDays(projectId = null) {
   const db = await getDb();
-  return await db.shootingday.find({ selector: { projects: projectId } }).exec();
+  if (projectId) {
+    return await db.shootingday.find({ selector: { projects: projectId } }).exec();
+  }
+  return await shootingDayCrud.getAll();
 }
 
-// Get shooting days by project as observable
-export async function getShootingDaysByProject$(projectId) {
+// Get shooting days as observable (optionally filtered by project ID)
+export async function getShootingDays$(projectId = null) {
   const db = await getDb();
-  return db.shootingday.find({ selector: { projects: projectId } }).$;
+  if (projectId) {
+    return db.shootingday.find({ selector: { projects: projectId } }).$;
+  }
+  return await shootingDayCrud.getAll$();
 }
 
 // Replication configuration

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Card, Button, Spinner } from 'flowbite-react'
 import { Link } from 'react-router-dom'
-import { getCharacters$, characterCrud, getCostumesByProject, getDatabase } from '../services/db/database'
+import { getCharacters$, characterCrud, getCostumes, getDatabase } from '../services/db/database'
 import { useProject } from '../contexts/ProjectContext.jsx'
 
 function CharacterOverviewPage() {
@@ -31,7 +31,7 @@ function CharacterOverviewPage() {
           });
 
           // Load costumes for current project
-          const costumesData = await getCostumesByProject(currentProjectId);
+          const costumesData = await getCostumes(currentProjectId);
           setCostumes(costumesData);
         } else {
           // No project selected

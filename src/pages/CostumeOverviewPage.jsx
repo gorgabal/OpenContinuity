@@ -3,8 +3,8 @@ import { Card, Button, Spinner } from 'flowbite-react';
 import { Link } from 'react-router-dom';
 import {
   getDatabase,
-  getCostumesByProject,
-  getCostumesByProject$,
+  getCostumes,
+  getCostumes$,
   costumeCrud,
   getCharacters,
   getPhotoWithFile,
@@ -31,13 +31,13 @@ function CostumeOverviewPage() {
         // Only load data if we have a current project
         if (currentProjectId) {
           // Get initial costumes and characters for current project
-          const initialCostumes = await getCostumesByProject(currentProjectId);
+          const initialCostumes = await getCostumes(currentProjectId);
           const allCharacters = await getCharacters(currentProjectId);
           setCostumes(initialCostumes);
           setCharacters(allCharacters);
 
           // Subscribe to costume changes for reactive updates
-          const costumes$ = await getCostumesByProject$(currentProjectId);
+          const costumes$ = await getCostumes$(currentProjectId);
           subscription = costumes$.subscribe(updatedCostumes => {
             setCostumes(updatedCostumes);
           });

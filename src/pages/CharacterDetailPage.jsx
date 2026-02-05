@@ -6,7 +6,7 @@ import {
   getCostumesByCharacterId,
   assignCostumeToCharacter,
   unassignCostumeFromCharacter,
-  getCostumesByProject,
+  getCostumes,
   costumeCrud,
 } from '../services/db/database'
 import { useProject } from '../contexts/ProjectContext.jsx'
@@ -59,7 +59,7 @@ function CharacterDetailPage() {
         if (currentProjectId) {
           const [characterCostumes, allCostumes] = await Promise.all([
             getCostumesByCharacterId(id),
-            getCostumesByProject(currentProjectId)
+            getCostumes(currentProjectId)
           ]);
 
           setCostumes(characterCostumes);

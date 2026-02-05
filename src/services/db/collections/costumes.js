@@ -72,17 +72,21 @@ export const costumeCrud = createCRUDOperations(() => getDb(), 'costumes', 'Cost
   notes: ''
 }, { useTimestamps: true });
 
-// Get costumes by project ID
-export async function getCostumesByProject(projectId) {
+// Get costumes, optionally filtered by project ID
+export async function getCostumes(projectId = null) {
   const db = await getDb();
-  return await db.costumes.find({ selector: { projects: projectId } }).exec();
+  const selector = projectId ? { projects: projectId } : {};
+  return await db.costumes.find({ selector }).exec();
 }
 
-// Get costumes by project as observable
-export async function getCostumesByProject$(projectId) {
+// Get costumes as observable, optionally filtered by project ID
+export async function getCostumes$(projectId = null) {
   const db = await getDb();
-  return db.costumes.find({ selector: { projects: projectId } }).$;
+  const selector = projectId ? { projects: projectId } : {};
+  return db.costumes.find({ selector }).$;
 }
+
+
 
 // Helper function to get costume with populated character reference
 export async function getCostumeWithCharacter(id) {
