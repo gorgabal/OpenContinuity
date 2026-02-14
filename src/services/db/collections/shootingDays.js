@@ -1,6 +1,5 @@
 // Shooting Day collection operations
 import { createCRUDOperations } from '../database.js';
-import { replicateAppwrite } from 'rxdb/plugins/replication-appwrite';
 
 export const shootingDaySchema = {
   version: 0,
@@ -88,87 +87,4 @@ export async function getShootingDays$(projectId = null) {
     return db.shootingday.find({ selector: { projects: projectId } }).$;
   }
   return await shootingDayCrud.getAll$();
-}
-
-// Replication configuration
-export function createShootingDayReplication(collection, client, databaseId) {
-  const replicationState = replicateAppwrite({
-    replicationIdentifier: 'ShootingDay-replication',
-    client,
-    databaseId,
-    collectionId: 'shootingday',
-    deletedField: 'deleted',
-    collection,
-    waitForLeadership: true, // Only leader tab syncs (prevents duplicate requests)
-    live: false, // Disable realtime subscriptions, use polling instead
-    pull: {
-      batchSize: 10,
-      modifier: (doc) => {
-        // Add timestamps if missing (coming from Appwrite)
-        const now = Date.now();
-
-        // Normalize date to YYYY-MM-DD format (remove time portion if present)
-        let normalizedDate = doc.date;
-        if (normalizedDate && normalizedDate.includes('T')) {
-          normalizedDate = normalizedDate.split('T')[0];
-        }
-
-        // Handle Appwrite relationships - extract IDs if nested objects, otherwise keep as-is
-        const projects = typeof doc.projects === 'object' && doc.projects !== null
-          ? doc.projects.$id || null
-          : doc.projects;
-
-        return {
-          ...doc,
-          date: normalizedDate,
-          name: doc.name || '',
-          notes: doc.notes || '',
-          projects,
-          createdAt: (doc.createdAt !== null && doc.createdAt !== undefined) ? doc.createdAt : now,
-          updatedAt: (doc.updatedAt !== null && doc.updatedAt !== undefined) ? doc.updatedAt : now,
-        };
-      }
-    },
-    push: {
-      batchSize: 10,
-      modifier: (doc) => {
-        console.log('[ShootingDays Push Modifier] Input doc:', doc);
-
-        // Add timestamps if missing or null (going to Appwrite)
-        const now = Date.now();
-
-        // Normalize date to YYYY-MM-DD format (remove time portion if present)
-        let normalizedDate = doc.date;
-        if (normalizedDate && normalizedDate.includes('T')) {
-          normalizedDate = normalizedDate.split('T')[0];
-        }
-
-        // Explicitly only send fields that Appwrite expects
-        // This filters out RxDB internal fields like _deleted, _rev, _meta
-        const cleanDoc = {
-          id: doc.id,
-          date: normalizedDate,
-          location: doc.location || '',
-          name: doc.name || '',
-          notes: doc.notes || '',
-          projects: doc.projects || null,
-          createdAt: (doc.createdAt !== null && doc.createdAt !== undefined) ? doc.createdAt : now,
-          updatedAt: (doc.updatedAt !== null && doc.updatedAt !== undefined) ? doc.updatedAt : now,
-        };
-
-        console.log('[ShootingDays Push Modifier] Output cleanDoc:', cleanDoc);
-        return cleanDoc;
-      }
-    },
-  });
-
-  // Monitor replication errors
-  replicationState.error$.subscribe(error => {
-    console.error('[ShootingDays Sync] Replication error:', error);
-    if (error.parameters) {
-      console.error('[ShootingDays Sync] Error parameters:', JSON.stringify(error.parameters, null, 2));
-    }
-  });
-
-  return replicationState;
 }

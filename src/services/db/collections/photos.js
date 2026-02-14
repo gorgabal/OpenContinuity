@@ -2,7 +2,6 @@
 import { createCRUDOperations } from '../database.js';
 import { generateUUID } from '../utils.js';
 import { map } from 'rxjs/operators';
-import { replicateAppwrite } from 'rxdb/plugins/replication-appwrite';
 import { compressPhoto } from '../../photoCompression.js';
 import { Client, Storage } from 'appwrite';
 
@@ -297,79 +296,4 @@ export async function updatePhotoSyncStatus(id, syncStatus, bucketUrl = null) {
   if (bucketUrl !== null) updateData.bucketUrl = bucketUrl;
 
   return await doc.update({ $set: updateData });
-}
-
-// Replication configuration
-export function createPhotoReplication(collection, client, databaseId) {
-  const replicationState = replicateAppwrite({
-    replicationIdentifier: 'Photo-replication',
-    client,
-    databaseId,
-    collectionId: 'photos',
-    deletedField: 'deleted',
-    collection,
-    waitForLeadership: true,
-    retryTime: 3000,
-    live: false,
-    pull: {
-      batchSize: 10,
-      modifier: doc => {
-        const now = Date.now();
-
-        // Only include fields that match our schema - don't spread doc
-        return {
-          id: doc.id,
-          localFilename: doc.localFilename,
-          bucketUrl: doc.bucketUrl || null,
-          syncStatus: doc.syncStatus || 'synced', // Assume synced if coming from Appwrite
-          createdAt:
-            doc.createdAt !== null && doc.createdAt !== undefined
-              ? doc.createdAt
-              : now,
-          updatedAt:
-            doc.updatedAt !== null && doc.updatedAt !== undefined
-              ? doc.updatedAt
-              : now,
-          _deleted: doc._deleted || false, // Required for RxDB replication
-        };
-      },
-    },
-    push: {
-      batchSize: 10,
-      modifier: doc => {
-        const now = Date.now();
-
-        // Only send fields that Appwrite expects
-        const cleanDoc = {
-          id: doc.id,
-          localFilename: doc.localFilename,
-          bucketUrl: doc.bucketUrl || null,
-          syncStatus: doc.syncStatus || 'pending',
-          createdAt:
-            doc.createdAt !== null && doc.createdAt !== undefined
-              ? doc.createdAt
-              : now,
-          updatedAt:
-            doc.updatedAt !== null && doc.updatedAt !== undefined
-              ? doc.updatedAt
-              : now,
-        };
-
-        return cleanDoc;
-      },
-    },
-  });
-
-  // Monitor replication events
-  replicationState.error$.subscribe(error => {
-    console.error('[Photos Sync] Replication error:', error);
-    if (error.parameters) {
-      console.error(
-        '[Photos Sync] Error parameters:',
-        JSON.stringify(error.parameters, null, 2),
-      );
-    }
-  });
-
-  return replicationState;
 }

@@ -7,15 +7,16 @@ import { RxDBAttachmentsPlugin } from 'rxdb/plugins/attachments';
 import { Client } from 'appwrite';
 import { generateUUID, getTimestamps } from './utils.js';
 
-// Import schemas and replication functions
-import { costumeSchema, initCostumeOperations, createCostumeReplication } from './collections/costumes.js';
-import { characterSchema, initCharacterOperations, createCharacterReplication } from './collections/characters.js';
-import { sceneSchema, initSceneOperations, createSceneReplication } from './collections/scenes.js';
-import { shootingDaySchema, initShootingDayOperations, createShootingDayReplication } from './collections/shootingDays.js';
-import { projectSchema, initProjectOperations, createProjectReplication } from './collections/projects.js';
-import { photoSchema, initPhotoOperations, createPhotoReplication } from './collections/photos.js';
+// Import schemas and init functions (replication is now centralized)
+import { costumeSchema, initCostumeOperations } from './collections/costumes.js';
+import { characterSchema, initCharacterOperations } from './collections/characters.js';
+import { sceneSchema, initSceneOperations } from './collections/scenes.js';
+import { shootingDaySchema, initShootingDayOperations } from './collections/shootingDays.js';
+import { projectSchema, initProjectOperations } from './collections/projects.js';
+import { photoSchema, initPhotoOperations } from './collections/photos.js';
 import { photoFileSchema, initPhotoFileOperations } from './collections/photoFiles.js';
 import { createConflictHandler } from './conflictHandler.js';
+import { createAppwriteReplication } from './replication.js';
 
 let database = null;
 let initPromise = null;
@@ -171,50 +172,69 @@ export async function DatabaseSyncAppwrite() {
 
   const databaseId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 
-  // Create replication states using collection-specific configurations
-  const projectsReplicationState = createProjectReplication(
-    db.projects,
-    client,
-    databaseId
-  );
+  // TODO: investigate if those overrides might be better placed in the collections themselves.
+  // Seems rather collection-specific.
+  //
+  // TODO: move retrytime to @replication.js
+  // Collections that need special handling beyond auto-derived config
+  const replicationOverrides = {
+    shootingday: {
+      entityName: 'ShootingDay',
+      // Normalize dates to YYYY-MM-DD format
+      pullModifier: (doc) => {
+        if (doc.date && doc.date.includes('T')) {
+          doc.date = doc.date.split('T')[0];
+        }
+        return doc;
+      },
+      pushModifier: (doc) => {
+        if (doc.date && doc.date.includes('T')) {
+          doc.date = doc.date.split('T')[0];
+        }
+        return doc;
+      },
+    },
+    characters: {
+      retryTime: 3000,
+    },
+    photos: {
+      retryTime: 3000,
+      // Photos coming from Appwrite are assumed synced
+      pullModifier: (doc) => {
+        if (!doc.syncStatus) {
+          doc.syncStatus = 'synced';
+        }
+        return doc;
+      },
+    },
+  };
 
-  const charactersReplicationState = createCharacterReplication(
-    db.characters,
-    client,
-    databaseId
-  );
+  // All collections to sync (in order of dependency - projects first)
+  const syncedCollections = [
+    'projects',
+    'characters',
+    'costumes',
+    'scenes',
+    'shootingday',
+    'photos',
+  ];
 
-  const costumesReplicationState = createCostumeReplication(
-    db.costumes,
-    client,
-    databaseId
-  );
+  // Create replication states using centralized factory
+  // TODO: double check if sync replicationOverrides work as expected
+  const states = {};
+  for (const name of syncedCollections) {
+    states[name] = createAppwriteReplication(
+      db[name],
+      client,
+      databaseId,
+      replicationOverrides[name] || {},
+    );
+  }
 
-  const scenesReplicationState = createSceneReplication(
-    db.scenes,
-    client,
-    databaseId
-  );
-
-  const shootingDaysReplicationState = createShootingDayReplication(
-    db.shootingday,
-    client,
-    databaseId
-  );
-
-  const photosReplicationState = createPhotoReplication(
-    db.photos,
-    client,
-    databaseId
-  );
-
-  // Explicitly start replication to ensure it's running
-  await projectsReplicationState.start();
-  await charactersReplicationState.start();
-  await costumesReplicationState.start();
-  await scenesReplicationState.start();
-  await shootingDaysReplicationState.start();
-  await photosReplicationState.start();
+  // Start all replications
+  for (const name of syncedCollections) {
+    await states[name].start();
+  }
 
   // Check if we have existing projects in local DB
   const existingProjectsCount = await db.projects.count().exec();
@@ -232,49 +252,73 @@ export async function DatabaseSyncAppwrite() {
     });
 
     const syncResult = await Promise.race([
-      projectsReplicationState.awaitInitialReplication().then(() => 'completed'),
-      timeoutPromise
+      states.projects.awaitInitialReplication().then(() => 'completed'),
+      timeoutPromise,
     ]);
 
     if (syncResult === 'completed') {
       console.log('Initial projects sync completed');
     }
   } else {
-    console.log(`Found ${existingProjectsCount} projects in local DB, skipping initial sync wait (offline support)`);
+    console.log(
+      `Found ${existingProjectsCount} projects in local DB, skipping initial sync wait (offline support)`,
+    );
   }
 
   // Store replication states globally for manual sync access
+  // Use lowercase 'shootingdays' key for backwards compatibility with triggerSync
   replicationStates = {
-    projects: projectsReplicationState,
-    characters: charactersReplicationState,
-    costumes: costumesReplicationState,
-    scenes: scenesReplicationState,
-    shootingdays: shootingDaysReplicationState,
-    photos: photosReplicationState,
+    projects: states.projects,
+    characters: states.characters,
+    costumes: states.costumes,
+    scenes: states.scenes,
+    shootingdays: states.shootingday,
+    photos: states.photos,
   };
 
+  // Helper to sync all collections
+  function syncAllCollections() {
+    for (const state of Object.values(replicationStates)) {
+      state.reSync();
+    }
+  }
+
   // Set up manual polling every 30 seconds
-  const syncInterval = setInterval(() => {
-    projectsReplicationState.reSync();
-    charactersReplicationState.reSync();
-    costumesReplicationState.reSync();
-    scenesReplicationState.reSync();
-    shootingDaysReplicationState.reSync();
-    photosReplicationState.reSync();
-  }, 30000); // 30 seconds
+  const syncInterval = setInterval(syncAllCollections, 30000);
+
+  // Sync when app regains visibility (user returns to tab)
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible') {
+      console.log('App visible - triggering sync');
+      syncAllCollections();
+    }
+  };
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+
+  // Sync when coming back online
+  const handleOnline = () => {
+    console.log('Back online - triggering sync');
+    syncAllCollections();
+  };
+  window.addEventListener('online', handleOnline);
 
   // Start background photo sync to Appwrite Storage
   // Use dynamic import to avoid circular dependency
+  // TODO: clean this code a bit. Dynamic import should not be the solution here. 
   let photoSyncCleanup = null;
-  import('../photoUpload.js').then(({ startPhotoSync }) => {
-    photoSyncCleanup = startPhotoSync();
-  }).catch(err => {
-    console.error('Failed to start photo sync:', err);
-  });
+  import('../photoUpload.js')
+    .then(({ startPhotoSync }) => {
+      photoSyncCleanup = startPhotoSync();
+    })
+    .catch((err) => {
+      console.error('Failed to start photo sync:', err);
+    });
 
-  // Clean up interval when database is destroyed or page unloads
+  // Clean up when page unloads
   window.addEventListener('beforeunload', () => {
     clearInterval(syncInterval);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    window.removeEventListener('online', handleOnline);
     if (photoSyncCleanup) {
       photoSyncCleanup();
     }
@@ -282,7 +326,7 @@ export async function DatabaseSyncAppwrite() {
 
   return {
     ...replicationStates,
-    syncInterval // Return interval ID so it can be cleared if needed
+    syncInterval, // Return interval ID so it can be cleared if needed
   };
 }
 
