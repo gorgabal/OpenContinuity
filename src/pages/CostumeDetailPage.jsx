@@ -20,6 +20,8 @@ import {
   getScenes,
   addPhotoWithFile,
   getPhotoWithFile,
+  getPhotosByCostume$,
+  updatePhoto,
   deletePhotoWithFile,
   triggerSync,
 } from '../services/db/database.js';
@@ -134,39 +136,54 @@ function CostumeDetailPage() {
   }, [costume?.name]);
 
   // Load photos for the current costume
-  const photoIdsJson = JSON.stringify(costume?.photos || []);
   useEffect(() => {
-    const loadPhotos = async () => {
-      if (isLoading) return; // Wait for costume data
+    let subscription;
+    let requestCount = 0;
 
-      const photoIds = JSON.parse(photoIdsJson);
-      if (photoIds.length === 0) {
-        setPhotos([]);
-        return;
-      }
+    const loadPhotos = async () => {
+      if (isLoading) return;
+      if (!id) return;
 
       try {
         setIsLoadingPhotos(true);
-        // Load photo data with blobs
-        const photosWithData = await Promise.all(
-          photoIds.map(async photoId => {
-            const photoWithFile = await getPhotoWithFile(photoId);
-            return photoWithFile;
-          }),
-        );
-        // Filter out null photos and photos with missing image data
-        setPhotos(
-          photosWithData.filter(p => p !== null && p.imageBlob !== null),
-        );
+
+        // Subscribe to photos by costume ID for reactive updates
+        const photos$ = await getPhotosByCostume$(id);
+        subscription = photos$.subscribe(async photos => {
+          const currentRequest = ++requestCount;
+
+          // Load photo data with blobs
+          const photosWithData = await Promise.all(
+            photos.map(async photo => {
+              const photoWithFile = await getPhotoWithFile(photo.id);
+              return photoWithFile;
+            }),
+          );
+
+          // Only update if this is still the most recent request
+          if (currentRequest === requestCount) {
+            // Filter out null photos and photos with missing image data
+            setPhotos(
+              photosWithData.filter(p => p !== null && p.imageBlob !== null),
+            );
+            setIsLoadingPhotos(false);
+          }
+        });
       } catch (err) {
         console.error('Failed to load photos:', err);
-      } finally {
         setIsLoadingPhotos(false);
       }
     };
 
     loadPhotos();
-  }, [photoIdsJson, isLoading]); // Only reload when photo IDs change
+
+    // Cleanup subscription on unmount or id change
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
+  }, [id, isLoading]);
 
   const handleTitleSave = async () => {
     try {
@@ -195,17 +212,13 @@ function CostumeDetailPage() {
         const newPhoto = await addPhotoWithFile(file);
         console.log('[Photo Upload] Created photo:', newPhoto.id);
 
-        // Add photo ID to costume's photos array
-        const currentPhotoIds = costume.photos || [];
-        await costumeCrud.update(id, { photos: [...currentPhotoIds, newPhoto.id] });
-        console.log('[Photo Upload] Updated costume with photo ID');
+        // Set costume ID on the photo (this is the inverse relationship)
+        await updatePhoto(newPhoto.id, { costumes: id });
+        console.log('[Photo Upload] Updated photo with costume ID');
 
         // Manually trigger sync for immediate upload
         triggerSync('photos');
-        triggerSync('costumes');
         console.log('[Photo Upload] Triggered manual sync');
-
-        // Reload photos (costume will update via subscription, triggering useEffect)
       } catch (err) {
         console.error('Failed to add photo:', err);
         setError('Failed to add photo: ' + err.message);
@@ -225,17 +238,8 @@ function CostumeDetailPage() {
       // Delete the photo file and metadata
       await deletePhotoWithFile(photoId);
 
-      // Remove photo ID from costume's photos array
-      const currentPhotoIds = costume.photos || [];
-      await costumeCrud.update(id, {
-        photos: currentPhotoIds.filter(pid => pid !== photoId),
-      });
-
-      // Trigger sync for photos and costumes
+      // Trigger sync for photos
       triggerSync('photos');
-      triggerSync('costumes');
-
-      // Reload photos (costume will update via subscription, triggering useEffect)
     } catch (err) {
       console.error('Failed to delete photo:', err);
       setError('Failed to delete photo: ' + err.message);

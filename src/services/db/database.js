@@ -199,11 +199,9 @@ export async function DatabaseSyncAppwrite() {
     },
     photos: {
       retryTime: 3000,
-      // Photos coming from Appwrite are assumed synced
+      // Any photo pulled from Appwrite already exists remotely — always mark as synced
       pullModifier: (doc) => {
-        if (!doc.syncStatus) {
-          doc.syncStatus = 'synced';
-        }
+        doc.syncStatus = 'synced';
         return doc;
       },
     },

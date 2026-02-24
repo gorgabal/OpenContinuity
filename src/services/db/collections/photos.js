@@ -32,6 +32,10 @@ export const photoSchema = {
     updatedAt: {
       type: 'number',
     },
+    costumes: {
+      type: ['string', 'null'],
+      default: null,
+    },
   },
   required: ['id', 'localFilename', 'createdAt', 'updatedAt'],
 };
@@ -272,6 +276,33 @@ export async function getPendingPhotos() {
     })
     .exec();
   return photos;
+}
+
+// Get photos by costume ID
+export async function getPhotosByCostume(costumeId) {
+  const db = await getDb();
+  const photos = await db.photos
+    .find({
+      selector: {
+        costumes: costumeId,
+      },
+    })
+    .exec();
+  return photos.sort((a, b) => b.createdAt - a.createdAt);
+}
+
+// Get photos by costume ID as observable
+export async function getPhotosByCostume$(costumeId) {
+  const db = await getDb();
+  return db.photos
+    .find({
+      selector: {
+        costumes: costumeId,
+      },
+    })
+    .$.pipe(
+      map(photos => photos.sort((a, b) => b.createdAt - a.createdAt)),
+    );
 }
 
 // Get photos pending upload as observable

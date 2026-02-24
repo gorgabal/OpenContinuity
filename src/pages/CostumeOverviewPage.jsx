@@ -8,6 +8,7 @@ import {
   costumeCrud,
   getCharacters,
   getPhotoWithFile,
+  getPhotosByCostume,
 } from '../services/db/database.js';
 import { useProject } from '../contexts/ProjectContext.jsx';
 
@@ -68,33 +69,50 @@ function CostumeOverviewPage() {
 
   // Load photo previews for costumes
   useEffect(() => {
-    const loadPhotoPreview = async () => {
-      // Collect photo IDs that need to be loaded
-      const photoIdsToLoad = costumes
-        .filter(costume => costume.photos && costume.photos.length > 0)
-        .map(costume => costume.photos[costume.photos.length - 1]);
-
-      if (photoIdsToLoad.length === 0) return;
-
-      // Load photos and update state, checking for duplicates inside the updater
-      for (const photoId of photoIdsToLoad) {
-        try {
-          const photoData = await getPhotoWithFile(photoId);
-          if (photoData && photoData.imageBlob) {
-            setPhotoPreviewMap(prev => {
-              // Skip if already loaded
-              if (prev[photoId]) return prev;
-              return { ...prev, [photoId]: photoData.imageBlob };
-            });
+    const loadPhotoPreviews = async () => {
+      // Load all photo previews concurrently
+      const previews = await Promise.all(
+        costumes.map(async costume => {
+          try {
+            const photos = await getPhotosByCostume(costume.id);
+            if (photos.length > 0) {
+              const latestPhoto = photos[0]; // Already sorted by createdAt desc
+              const photoData = await getPhotoWithFile(latestPhoto.id);
+              if (photoData && photoData.imageBlob) {
+                return {
+                  costumeId: costume.id,
+                  blob: photoData.imageBlob,
+                  count: photos.length,
+                };
+              }
+            }
+          } catch (err) {
+            console.error(
+              `Failed to load photos for costume ${costume.id}:`,
+              err,
+            );
           }
-        } catch (err) {
-          console.error(`Failed to load photo ${photoId}:`, err);
-        }
-      }
+          return null;
+        }),
+      );
+
+      // Update state with loaded previews (only add new ones, don't overwrite existing)
+      setPhotoPreviewMap(prev => {
+        const updated = { ...prev };
+        previews.forEach(preview => {
+          if (preview && !updated[preview.costumeId]) {
+            updated[preview.costumeId] = {
+              blob: preview.blob,
+              count: preview.count,
+            };
+          }
+        });
+        return updated;
+      });
     };
 
     if (costumes.length > 0) {
-      loadPhotoPreview();
+      loadPhotoPreviews();
     }
   }, [costumes]);
 
@@ -152,14 +170,10 @@ function CostumeOverviewPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {costumes.map(costume => {
-            // Get the last uploaded photo ID for preview
-            const lastPhotoId =
-              costume.photos && costume.photos.length > 0
-                ? costume.photos[costume.photos.length - 1]
-                : null;
-            const lastPhotoBlob = lastPhotoId
-              ? photoPreviewMap[lastPhotoId]
-              : null;
+            // Get photo preview by costume ID
+            const photoPreview = photoPreviewMap[costume.id];
+            const lastPhotoBlob = photoPreview?.blob;
+            const photoCount = photoPreview?.count || 0;
 
             // Find the character name by ID
             const character =
@@ -187,10 +201,9 @@ function CostumeOverviewPage() {
                   <p className="font-normal text-gray-700">
                     Scene: {costume.scene || 'Not assigned'}
                   </p>
-                  {costume.photos && costume.photos.length > 0 && (
+                  {photoCount > 0 && (
                     <p className="font-normal text-gray-500 text-sm">
-                      {costume.photos.length} photo
-                      {costume.photos.length !== 1 ? 's' : ''}
+                      {photoCount} photo{photoCount !== 1 ? 's' : ''}
                     </p>
                   )}
                 </Card>
