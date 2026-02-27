@@ -1,6 +1,14 @@
-import { useState, useEffect } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
-import { Card, Button, Spinner, TextInput, Label, Textarea, Modal } from 'flowbite-react'
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import {
+  Card,
+  Button,
+  Spinner,
+  TextInput,
+  Label,
+  Textarea,
+  Modal,
+} from 'flowbite-react';
 import {
   characterCrud,
   getCostumesByCharacterId,
@@ -8,29 +16,33 @@ import {
   unassignCostumeFromCharacter,
   getCostumes,
   costumeCrud,
-} from '../services/db/database'
-import { useProject } from '../contexts/ProjectContext.jsx'
+  getPhotosByCostume,
+  getPhotoWithFile,
+} from '../services/db/database';
+import { useProject } from '../contexts/ProjectContext.jsx';
 
 function CharacterDetailPage() {
-  const { id } = useParams()
-  const navigate = useNavigate()
-  const { currentProjectId } = useProject()
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { currentProjectId } = useProject();
 
-  const [character, setCharacter] = useState(null)
-  const [costumes, setCostumes] = useState([])
-  const [availableCostumes, setAvailableCostumes] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState(null)
-  const [isEditing, setIsEditing] = useState(false)
-  const [showAddCostumeModal, setShowAddCostumeModal] = useState(false)
+  const [character, setCharacter] = useState(null);
+  const [costumes, setCostumes] = useState([]);
+  const [availableCostumes, setAvailableCostumes] = useState([]);
+  //TODO: remove photoPreviewMap, load from rxdb directly. This seems like needless abstraction. 
+  const [photoPreviewMap, setPhotoPreviewMap] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [showAddCostumeModal, setShowAddCostumeModal] = useState(false);
 
   const [editData, setEditData] = useState({
     name: '',
     description: '',
     actor: '',
-    notes: ''
-  })
+    notes: '',
+  });
 
   useEffect(() => {
     if (!id) return;
@@ -59,20 +71,45 @@ function CharacterDetailPage() {
         if (currentProjectId) {
           const [characterCostumes, allCostumes] = await Promise.all([
             getCostumesByCharacterId(id),
-            getCostumes(currentProjectId)
+            getCostumes(currentProjectId),
           ]);
 
           setCostumes(characterCostumes);
 
-          const unassignedCostumes = allCostumes.filter(costume =>
-            !costume.character || costume.character === null
+          const unassignedCostumes = allCostumes.filter(
+            costume => !costume.character || costume.character === null,
           );
           setAvailableCostumes(unassignedCostumes);
+
+          // Load photo previews for all costumes (both assigned and available)
+          const allCostumesToLoad = [
+            ...characterCostumes,
+            ...unassignedCostumes,
+          ];
+          const photoMap = {};
+          for (const costume of allCostumesToLoad) {
+            try {
+              const photos = await getPhotosByCostume(costume.id);
+              if (photos.length > 0) {
+                const lastPhotoId = photos[0].id;
+                const photoWithFile = await getPhotoWithFile(lastPhotoId);
+                if (photoWithFile && photoWithFile.imageBlob) {
+                  photoMap[costume.id] = photoWithFile.imageBlob;
+                }
+              }
+            } catch (err) {
+              console.error(
+                `Failed to load photos for costume ${costume.id}:`,
+                err,
+              );
+            }
+          }
+          setPhotoPreviewMap(photoMap);
         } else {
           setCostumes([]);
           setAvailableCostumes([]);
+          setPhotoPreviewMap({});
         }
-
       } catch (err) {
         console.error('Error loading character:', err);
         setError(err.message);
@@ -88,7 +125,7 @@ function CharacterDetailPage() {
         subscription.unsubscribe();
       }
     };
-  }, [id, currentProjectId])
+  }, [id, currentProjectId]);
 
   // Sync editData with character when NOT editing
   useEffect(() => {
@@ -98,7 +135,7 @@ function CharacterDetailPage() {
           name: character.name || '',
           description: character.description || '',
           actor: character.actor || '',
-          notes: character.notes || ''
+          notes: character.notes || '',
         };
 
         // Only update if data actually changed
@@ -112,31 +149,30 @@ function CharacterDetailPage() {
 
   const handleSave = async () => {
     try {
-      setSaving(true)
-      setError(null)
+      setSaving(true);
+      setError(null);
 
       const updatedData = {
         ...editData,
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
       };
 
-      await characterCrud.update(id, updatedData)
+      await characterCrud.update(id, updatedData);
 
       // Update local state immediately - don't wait for subscription
       setCharacter(prev => ({
         ...prev,
-        ...updatedData
+        ...updatedData,
       }));
 
-      setIsEditing(false)
-
+      setIsEditing(false);
     } catch (err) {
-      console.error('Error saving character:', err)
-      setError(err.message)
+      console.error('Error saving character:', err);
+      setError(err.message);
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   const handleCancel = () => {
     // Reset edit data to original values
@@ -144,60 +180,72 @@ function CharacterDetailPage() {
       name: character.name || '',
       description: character.description || '',
       actor: character.actor || '',
-      notes: character.notes || ''
-    })
-    setIsEditing(false)
-    setError(null)
-  }
+      notes: character.notes || '',
+    });
+    setIsEditing(false);
+    setError(null);
+  };
 
   const handleDelete = async () => {
-    if (window.confirm(`Are you sure you want to delete the character "${character.name}"?`)) {
+    if (
+      window.confirm(
+        `Are you sure you want to delete the character "${character.name}"?`,
+      )
+    ) {
       try {
-        await characterCrud.delete(id)
-        navigate('/characters')
+        await characterCrud.delete(id);
+        navigate('/characters');
       } catch (err) {
-        console.error('Error deleting character:', err)
-        setError(err.message)
+        console.error('Error deleting character:', err);
+        setError(err.message);
       }
     }
-  }
+  };
 
-  const handleAssignCostume = async (costumeId) => {
+  const handleAssignCostume = async costumeId => {
     try {
-      await assignCostumeToCharacter(costumeId, id)
+      await assignCostumeToCharacter(costumeId, id);
 
       // Refresh costume data
       const [updatedCostumes, allCostumes] = await Promise.all([
         getCostumesByCharacterId(id),
-        costumeCrud.getAll()
-      ])
+        costumeCrud.getAll(),
+      ]);
 
-      setCostumes(updatedCostumes)
-      setAvailableCostumes(allCostumes.filter(costume => !costume.character || costume.character === null))
-      setShowAddCostumeModal(false)
+      setCostumes(updatedCostumes);
+      setAvailableCostumes(
+        allCostumes.filter(
+          costume => !costume.character || costume.character === null,
+        ),
+      );
+      setShowAddCostumeModal(false);
     } catch (err) {
-      console.error('Error assigning costume:', err)
-      setError(err.message)
+      console.error('Error assigning costume:', err);
+      setError(err.message);
     }
-  }
+  };
 
-  const handleUnassignCostume = async (costumeId) => {
+  const handleUnassignCostume = async costumeId => {
     try {
-      await unassignCostumeFromCharacter(costumeId)
+      await unassignCostumeFromCharacter(costumeId);
 
       // Refresh costume data
       const [updatedCostumes, allCostumes] = await Promise.all([
         getCostumesByCharacterId(id),
-        costumeCrud.getAll()
-      ])
+        costumeCrud.getAll(),
+      ]);
 
-      setCostumes(updatedCostumes)
-      setAvailableCostumes(allCostumes.filter(costume => !costume.character || costume.character === null))
+      setCostumes(updatedCostumes);
+      setAvailableCostumes(
+        allCostumes.filter(
+          costume => !costume.character || costume.character === null,
+        ),
+      );
     } catch (err) {
-      console.error('Error unassigning costume:', err)
-      setError(err.message)
+      console.error('Error unassigning costume:', err);
+      setError(err.message);
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -207,7 +255,7 @@ function CharacterDetailPage() {
           <span className="ml-2 text-lg">Loading character...</span>
         </div>
       </div>
-    )
+    );
   }
 
   if (error && !character) {
@@ -222,7 +270,7 @@ function CharacterDetailPage() {
           </div>
         </Card>
       </div>
-    )
+    );
   }
 
   if (!character) {
@@ -237,7 +285,7 @@ function CharacterDetailPage() {
           </div>
         </Card>
       </div>
-    )
+    );
   }
 
   return (
@@ -258,7 +306,11 @@ function CharacterDetailPage() {
               <Button className="w-full" color="failure" onClick={handleDelete}>
                 Delete
               </Button>
-              <Button className="w-full" color="gray" onClick={() => navigate('/characters')}>
+              <Button
+                className="w-full"
+                color="gray"
+                onClick={() => navigate('/characters')}
+              >
                 Back
               </Button>
             </>
@@ -268,7 +320,12 @@ function CharacterDetailPage() {
                 {saving ? <Spinner size="sm" className="mr-2" /> : null}
                 Save
               </Button>
-              <Button className="w-full" color="gray" onClick={handleCancel} disabled={saving}>
+              <Button
+                className="w-full"
+                color="gray"
+                onClick={handleCancel}
+                disabled={saving}
+              >
                 Cancel
               </Button>
             </>
@@ -290,7 +347,9 @@ function CharacterDetailPage() {
               <TextInput
                 id="name"
                 value={editData.name}
-                onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                onChange={e =>
+                  setEditData({ ...editData, name: e.target.value })
+                }
                 placeholder="Character name"
               />
             ) : (
@@ -304,7 +363,9 @@ function CharacterDetailPage() {
               <TextInput
                 id="actor"
                 value={editData.actor}
-                onChange={(e) => setEditData({ ...editData, actor: e.target.value })}
+                onChange={e =>
+                  setEditData({ ...editData, actor: e.target.value })
+                }
                 placeholder="Actor name"
               />
             ) : (
@@ -319,12 +380,16 @@ function CharacterDetailPage() {
             <Textarea
               id="description"
               value={editData.description}
-              onChange={(e) => setEditData({ ...editData, description: e.target.value })}
+              onChange={e =>
+                setEditData({ ...editData, description: e.target.value })
+              }
               placeholder="Character description..."
               rows={4}
             />
           ) : (
-            <p className="mt-1">{character.description || 'No description provided'}</p>
+            <p className="mt-1">
+              {character.description || 'No description provided'}
+            </p>
           )}
         </div>
 
@@ -334,7 +399,9 @@ function CharacterDetailPage() {
             <Textarea
               id="notes"
               value={editData.notes}
-              onChange={(e) => setEditData({ ...editData, notes: e.target.value })}
+              onChange={e =>
+                setEditData({ ...editData, notes: e.target.value })
+              }
               placeholder="Additional notes about the character..."
               rows={4}
             />
@@ -348,7 +415,9 @@ function CharacterDetailPage() {
       <Card className="mt-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Costumes ({costumes.length})</h2>
-          <Button onClick={() => setShowAddCostumeModal(true)}>Assign Costume</Button>
+          <Button onClick={() => setShowAddCostumeModal(true)}>
+            Assign Costume
+          </Button>
         </div>
 
         {costumes.length === 0 ? (
@@ -357,18 +426,16 @@ function CharacterDetailPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {costumes.map((costume) => {
-              // Get the last uploaded photo for preview
-              const lastPhoto = costume.photos && costume.photos.length > 0
-                ? costume.photos[costume.photos.length - 1]
-                : null;
+            {costumes.map(costume => {
+              // Get photo preview from map
+              const photoPreview = photoPreviewMap[costume.id];
 
               return (
                 <Card key={costume.id} className="relative">
                   <Link to={`/costumes/${costume.id}`}>
-                    {lastPhoto ? (
+                    {photoPreview ? (
                       <img
-                        src={lastPhoto.data}
+                        src={photoPreview}
                         alt={costume.name}
                         className="w-full h-48 object-cover rounded"
                       />
@@ -381,7 +448,9 @@ function CharacterDetailPage() {
                     )}
                     <h3 className="font-semibold mt-2">{costume.name}</h3>
                     {costume.scene && (
-                      <p className="text-sm text-gray-600">Scene: {costume.scene}</p>
+                      <p className="text-sm text-gray-600">
+                        Scene: {costume.scene}
+                      </p>
                     )}
                   </Link>
                   <Button
@@ -393,14 +462,17 @@ function CharacterDetailPage() {
                     Unassign
                   </Button>
                 </Card>
-              )
+              );
             })}
           </div>
         )}
       </Card>
 
       {/* Add Costume Modal */}
-      <Modal show={showAddCostumeModal} onClose={() => setShowAddCostumeModal(false)}>
+      <Modal
+        show={showAddCostumeModal}
+        onClose={() => setShowAddCostumeModal(false)}
+      >
         <Modal.Header>Assign Costume to {character?.name}</Modal.Header>
         <Modal.Body>
           <div className="space-y-4">
@@ -410,18 +482,19 @@ function CharacterDetailPage() {
               </p>
             ) : (
               <div className="grid gap-3 max-h-96 overflow-y-auto">
-                {availableCostumes.map((costume) => {
-                  // Get the last uploaded photo for preview
-                  const lastPhoto = costume.photos && costume.photos.length > 0
-                    ? costume.photos[costume.photos.length - 1]
-                    : null;
+                {availableCostumes.map(costume => {
+                  // Get photo preview from map
+                  const photoPreview = photoPreviewMap[costume.id];
 
                   return (
-                    <Card key={costume.id} className="hover:bg-gray-50 transition-colors">
+                    <Card
+                      key={costume.id}
+                      className="hover:bg-gray-50 transition-colors"
+                    >
                       <div className="flex items-center space-x-4">
-                        {lastPhoto ? (
+                        {photoPreview ? (
                           <img
-                            src={lastPhoto.data}
+                            src={photoPreview}
                             alt={costume.name}
                             className="w-16 h-20 object-cover rounded"
                           />
@@ -435,7 +508,9 @@ function CharacterDetailPage() {
                         <div className="flex-1">
                           <h4 className="font-semibold">{costume.name}</h4>
                           {costume.scene && (
-                            <p className="text-sm text-gray-600">Scene: {costume.scene}</p>
+                            <p className="text-sm text-gray-600">
+                              Scene: {costume.scene}
+                            </p>
                           )}
                         </div>
                         <Button
@@ -446,7 +521,7 @@ function CharacterDetailPage() {
                         </Button>
                       </div>
                     </Card>
-                  )
+                  );
                 })}
               </div>
             )}
@@ -459,7 +534,7 @@ function CharacterDetailPage() {
         </Modal.Footer>
       </Modal>
     </div>
-  )
+  );
 }
 
-export default CharacterDetailPage
+export default CharacterDetailPage;

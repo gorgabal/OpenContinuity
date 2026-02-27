@@ -24,17 +24,9 @@ export const costumeSchema = {
       type: 'array',
       ref: 'scenes',
       items: {
-        type: 'string'
+        type: 'string',
       },
-      default: []
-    },
-    photos: {
-      type: 'array',
-      ref: 'photos',
-      items: {
-        type: 'string'
-      },
-      default: []
+      default: [],
     },
     projects: {
       type: ['string', 'null'],
@@ -62,14 +54,19 @@ export function initCostumeOperations(getDatabaseFn) {
   getDb = getDatabaseFn;
 }
 
-export const costumeCrud = createCRUDOperations(() => getDb(), 'costumes', 'Costume', {
-  name: 'New Costume',
-  character: null,
-  scenes: [],
-  photos: [],
-  projects: null,
-  notes: ''
-}, { useTimestamps: true });
+export const costumeCrud = createCRUDOperations(
+  () => getDb(),
+  'costumes',
+  'Costume',
+  {
+    name: 'New Costume',
+    character: null,
+    scenes: [],
+    projects: null,
+    notes: '',
+  },
+  { useTimestamps: true },
+);
 
 // Get costumes, optionally filtered by project ID
 export async function getCostumes(projectId = null) {
@@ -85,8 +82,6 @@ export async function getCostumes$(projectId = null) {
   return db.costumes.find({ selector }).$;
 }
 
-
-
 // Helper function to get costume with populated character reference
 export async function getCostumeWithCharacter(id) {
   const db = await getDb();
@@ -97,12 +92,12 @@ export async function getCostumeWithCharacter(id) {
 export async function getCostumesWithCharacters() {
   const costumes = await costumeCrud.getAll();
   return await Promise.all(
-    costumes.map(async (costume) => {
+    costumes.map(async costume => {
       if (costume.character) {
         await costume.populate('character');
       }
       return costume;
-    })
+    }),
   );
 }
 
@@ -111,10 +106,10 @@ export async function getCostumesByCharacterId(characterId) {
   const costumes = await costumeCrud.findByQuery({ character: characterId });
   // Populate character reference for each costume
   return await Promise.all(
-    costumes.map(async (costume) => {
+    costumes.map(async costume => {
       await costume.populate('character');
       return costume;
-    })
+    }),
   );
 }
 

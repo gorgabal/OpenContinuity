@@ -34,6 +34,22 @@ export const photoSchema = {
     },
     costumes: {
       type: ['string', 'null'],
+      ref: 'costumes',
+      default: null,
+    },
+    characters: {
+      type: ['string', 'null'],
+      ref: 'characters',
+      default: null,
+    },
+    scenes: {
+      type: ['string', 'null'],
+      ref: 'scenes',
+      default: null,
+    },
+    shootingDays: {
+      type: ['string', 'null'],
+      ref: 'shootingday',
       default: null,
     },
   },
@@ -85,7 +101,6 @@ function generatePhotoFilename(originalFilename, uuid) {
 // Helper to download photo from Appwrite Storage
 // TODO: maybe safe it as rxdb attachments instead?
 async function downloadPhotoFromAppwrite(photoId, bucketUrl) {
-
   // Check if user is authenticated
   const authFlag = localStorage.getItem('appwrite_authenticated');
   if (authFlag !== 'true') {
@@ -300,9 +315,74 @@ export async function getPhotosByCostume$(costumeId) {
         costumes: costumeId,
       },
     })
-    .$.pipe(
-      map(photos => photos.sort((a, b) => b.createdAt - a.createdAt)),
-    );
+    .$.pipe(map(photos => photos.sort((a, b) => b.createdAt - a.createdAt)));
+}
+
+// Generic: Get photos by any parent entity
+export async function getPhotosByEntity(entityType, entityId) {
+  const db = await getDb();
+  const photos = await db.photos
+    .find({
+      selector: {
+        [entityType]: entityId,
+      },
+    })
+    .exec();
+  return photos.sort((a, b) => b.createdAt - a.createdAt);
+}
+
+// Generic: Get photos by any parent entity as observable
+export async function getPhotosByEntity$(entityType, entityId) {
+  const db = await getDb();
+  return db.photos
+    .find({
+      selector: {
+        [entityType]: entityId,
+      },
+    })
+    .$.pipe(map(photos => photos.sort((a, b) => b.createdAt - a.createdAt)));
+}
+
+// Helper: Link photo to a parent entity
+export async function linkPhotoToEntity(photoId, entityType, entityId) {
+  const db = await getDb();
+  const doc = await db.photos.findOne(photoId).exec();
+  if (!doc) {
+    throw new Error(`Photo with id ${photoId} not found`);
+  }
+
+  // Clear all parent entity fields first
+  const updateData = {
+    costumes: null,
+    characters: null,
+    scenes: null,
+    shootingDays: null,
+    updatedAt: Date.now(),
+  };
+
+  // Set the specified parent entity
+  updateData[entityType] = entityId;
+
+  return await doc.update({ $set: updateData });
+}
+
+// Helper: Unlink photo from all parent entities
+export async function unlinkPhotoFromAllEntities(photoId) {
+  const db = await getDb();
+  const doc = await db.photos.findOne(photoId).exec();
+  if (!doc) {
+    throw new Error(`Photo with id ${photoId} not found`);
+  }
+
+  return await doc.update({
+    $set: {
+      costumes: null,
+      characters: null,
+      scenes: null,
+      shootingDays: null,
+      updatedAt: Date.now(),
+    },
+  });
 }
 
 // Get photos pending upload as observable

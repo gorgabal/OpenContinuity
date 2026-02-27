@@ -1,71 +1,116 @@
-import { useState, useEffect } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
-import { Card, Button, Spinner, TextInput, Textarea, Label, Select, Modal } from 'flowbite-react'
-import { shootingDayCrud, sceneCrud, getScenesByShootingDay, getCostumes, getScenes, getCharacters } from '../services/db/database'
-import { useProject } from '../contexts/ProjectContext.jsx'
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import {
+  Card,
+  Button,
+  Spinner,
+  TextInput,
+  Textarea,
+  Label,
+  Select,
+  Modal,
+} from 'flowbite-react';
+import {
+  shootingDayCrud,
+  sceneCrud,
+  getScenesByShootingDay,
+  getCostumes,
+  getScenes,
+  getCharacters,
+  getPhotosByCostume,
+  getPhotoWithFile,
+} from '../services/db/database';
+import { useProject } from '../contexts/ProjectContext.jsx';
 
 function ShootingDayDetailPage() {
-  const { id } = useParams()
-  const navigate = useNavigate()
-  const { currentProjectId } = useProject()
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { currentProjectId } = useProject();
 
-  const [shootingDay, setShootingDay] = useState(null)
-  const [assignedScenes, setAssignedScenes] = useState([])
-  const [characters, setCharacters] = useState([])
-  const [costumes, setCostumes] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState(null)
-  const [isEditing, setIsEditing] = useState(false)
-  const [showAddSceneModal, setShowAddSceneModal] = useState(false)
+  const [shootingDay, setShootingDay] = useState(null);
+  const [assignedScenes, setAssignedScenes] = useState([]);
+  const [characters, setCharacters] = useState([]);
+  const [costumes, setCostumes] = useState([]);
+  const [photoPreviewMap, setPhotoPreviewMap] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [showAddSceneModal, setShowAddSceneModal] = useState(false);
 
   const [editData, setEditData] = useState({
     date: '',
     location: '',
     name: '',
-    notes: ''
-  })
+    notes: '',
+  });
 
   // Track available scenes for assignment
-  const [availableScenes, setAvailableScenes] = useState([])
+  const [availableScenes, setAvailableScenes] = useState([]);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        setLoading(true)
+        setLoading(true);
 
-        const shootingDayData = await shootingDayCrud.getById(id)
+        const shootingDayData = await shootingDayCrud.getById(id);
 
         if (!shootingDayData) {
-          setError('Shooting day not found')
-          return
+          setError('Shooting day not found');
+          return;
         }
 
-        setShootingDay(shootingDayData)
+        setShootingDay(shootingDayData);
 
-        const assignedScenesData = await getScenesByShootingDay(id)
-        setAssignedScenes(assignedScenesData)
+        const assignedScenesData = await getScenesByShootingDay(id);
+        setAssignedScenes(assignedScenesData);
 
         // Load project-filtered data
         if (currentProjectId) {
-          const [allScenesData, charactersData, costumesData] = await Promise.all([
-            getScenes(currentProjectId),
-            getCharacters(currentProjectId),
-            getCostumes(currentProjectId)
-          ])
+          const [allScenesData, charactersData, costumesData] =
+            await Promise.all([
+              getScenes(currentProjectId),
+              getCharacters(currentProjectId),
+              getCostumes(currentProjectId),
+            ]);
 
-          setCharacters(charactersData)
-          setCostumes(costumesData)
+          setCharacters(charactersData);
+          setCostumes(costumesData);
 
           // Set available scenes (scenes not assigned to this shooting day)
-          const unassignedScenes = allScenesData.filter(scene =>
-            !assignedScenesData.some(assignedScene => assignedScene.id === scene.id)
-          )
-          setAvailableScenes(unassignedScenes)
+          const unassignedScenes = allScenesData.filter(
+            scene =>
+              !assignedScenesData.some(
+                assignedScene => assignedScene.id === scene.id,
+              ),
+          );
+          setAvailableScenes(unassignedScenes);
+
+          // Load photo previews for all costumes
+          const photoMap = {};
+          for (const costume of costumesData) {
+            try {
+              const photos = await getPhotosByCostume(costume.id);
+              if (photos.length > 0) {
+                const lastPhotoId = photos[0].id;
+                const photoWithFile = await getPhotoWithFile(lastPhotoId);
+                if (photoWithFile && photoWithFile.imageBlob) {
+                  photoMap[costume.id] = photoWithFile.imageBlob;
+                }
+              }
+            } catch (err) {
+              console.error(
+                `Failed to load photos for costume ${costume.id}:`,
+                err,
+              );
+            }
+          }
+          setPhotoPreviewMap(photoMap);
         } else {
-          setCharacters([])
-          setCostumes([])
-          setAvailableScenes([])
+          setCharacters([]);
+          setCostumes([]);
+          setAvailableScenes([]);
+          setPhotoPreviewMap({});
         }
 
         // Initialize edit data
@@ -73,42 +118,40 @@ function ShootingDayDetailPage() {
           date: shootingDayData.date || '',
           location: shootingDayData.location || '',
           name: shootingDayData.name || '',
-          notes: shootingDayData.notes || ''
-        })
-
+          notes: shootingDayData.notes || '',
+        });
       } catch (err) {
-        console.error('Error loading shooting day:', err)
-        setError(err.message)
+        console.error('Error loading shooting day:', err);
+        setError(err.message);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
     if (id) {
-      loadData()
+      loadData();
     }
-  }, [id, currentProjectId])
+  }, [id, currentProjectId]);
 
   const handleSave = async () => {
     try {
-      setSaving(true)
-      setError(null)
+      setSaving(true);
+      setError(null);
 
       // Update shooting day details
-      await shootingDayCrud.update(id, editData)
+      await shootingDayCrud.update(id, editData);
 
       // Refresh shooting day data
-      const updatedShootingDay = await shootingDayCrud.getById(id)
-      setShootingDay(updatedShootingDay)
-      setIsEditing(false)
-
+      const updatedShootingDay = await shootingDayCrud.getById(id);
+      setShootingDay(updatedShootingDay);
+      setIsEditing(false);
     } catch (err) {
-      console.error('Error saving shooting day:', err)
-      setError(err.message)
+      console.error('Error saving shooting day:', err);
+      setError(err.message);
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   const handleCancel = () => {
     // Reset edit data to original values
@@ -116,68 +159,74 @@ function ShootingDayDetailPage() {
       date: shootingDay.date || '',
       location: shootingDay.location || '',
       name: shootingDay.name || '',
-      notes: shootingDay.notes || ''
-    })
-    setIsEditing(false)
-    setError(null)
-  }
+      notes: shootingDay.notes || '',
+    });
+    setIsEditing(false);
+    setError(null);
+  };
 
-  const handleAssignScene = async (sceneId) => {
+  const handleAssignScene = async sceneId => {
     try {
-      await sceneCrud.update(sceneId, { shootingDay: id })
+      await sceneCrud.update(sceneId, { shootingDay: id });
 
       // Refresh data
       const [updatedAssignedScenes, allScenesData] = await Promise.all([
         getScenesByShootingDay(id),
-        getScenes()
-      ])
+        getScenes(),
+      ]);
 
-      setAssignedScenes(updatedAssignedScenes)
+      setAssignedScenes(updatedAssignedScenes);
 
       // Update available scenes
-      const unassignedScenes = allScenesData.filter(scene =>
-        !updatedAssignedScenes.some(assignedScene => assignedScene.id === scene.id)
-      )
-      setAvailableScenes(unassignedScenes)
+      const unassignedScenes = allScenesData.filter(
+        scene =>
+          !updatedAssignedScenes.some(
+            assignedScene => assignedScene.id === scene.id,
+          ),
+      );
+      setAvailableScenes(unassignedScenes);
 
-      setShowAddSceneModal(false)
+      setShowAddSceneModal(false);
     } catch (err) {
-      console.error('Error assigning scene:', err)
-      setError(err.message)
+      console.error('Error assigning scene:', err);
+      setError(err.message);
     }
-  }
+  };
 
-  const handleUnassignScene = async (sceneId) => {
+  const handleUnassignScene = async sceneId => {
     try {
-      await sceneCrud.update(sceneId, { shootingDay: null })
+      await sceneCrud.update(sceneId, { shootingDay: null });
 
       // Refresh data
       const [updatedAssignedScenes, allScenesData] = await Promise.all([
         getScenesByShootingDay(id),
-        getScenes()
-      ])
+        getScenes(),
+      ]);
 
-      setAssignedScenes(updatedAssignedScenes)
+      setAssignedScenes(updatedAssignedScenes);
 
       // Update available scenes
-      const unassignedScenes = allScenesData.filter(scene =>
-        !updatedAssignedScenes.some(assignedScene => assignedScene.id === scene.id)
-      )
-      setAvailableScenes(unassignedScenes)
+      const unassignedScenes = allScenesData.filter(
+        scene =>
+          !updatedAssignedScenes.some(
+            assignedScene => assignedScene.id === scene.id,
+          ),
+      );
+      setAvailableScenes(unassignedScenes);
     } catch (err) {
-      console.error('Error unassigning scene:', err)
-      setError(err.message)
+      console.error('Error unassigning scene:', err);
+      setError(err.message);
     }
-  }
+  };
 
   // Get unique character IDs from assigned scenes
   const getUniqueCharacterIds = () => {
     const allCharacterIds = assignedScenes
       .flatMap(scene => scene.characters || [])
-      .filter(id => id)
+      .filter(id => id);
 
-    return [...new Set(allCharacterIds)]
-  }
+    return [...new Set(allCharacterIds)];
+  };
 
   if (loading) {
     return (
@@ -187,7 +236,7 @@ function ShootingDayDetailPage() {
           <span className="ml-2 text-lg">Loading shooting day...</span>
         </div>
       </div>
-    )
+    );
   }
 
   if (error && !shootingDay) {
@@ -202,7 +251,7 @@ function ShootingDayDetailPage() {
           </div>
         </Card>
       </div>
-    )
+    );
   }
 
   if (!shootingDay) {
@@ -217,20 +266,22 @@ function ShootingDayDetailPage() {
           </div>
         </Card>
       </div>
-    )
+    );
   }
 
-  const uniqueCharacterIds = getUniqueCharacterIds()
+  const uniqueCharacterIds = getUniqueCharacterIds();
 
   return (
     <div className="p-4 max-w-6xl mx-auto">
       <div className="mb-6 flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">
-            {shootingDay.name || new Date(shootingDay.date).toLocaleDateString('nl-NL')}
+            {shootingDay.name ||
+              new Date(shootingDay.date).toLocaleDateString('nl-NL')}
           </h1>
           <p className="text-gray-600 mt-2">
-            {new Date(shootingDay.date).toLocaleDateString('nl-NL')} • {shootingDay.location || 'Not specified'}
+            {new Date(shootingDay.date).toLocaleDateString('nl-NL')} •{' '}
+            {shootingDay.location || 'Not specified'}
           </p>
         </div>
         <div className="space-y-1">
@@ -239,7 +290,11 @@ function ShootingDayDetailPage() {
               <Button className="w-full" onClick={() => setIsEditing(true)}>
                 Edit
               </Button>
-              <Button className="w-full" color="gray" onClick={() => navigate('/scene-overview')}>
+              <Button
+                className="w-full"
+                color="gray"
+                onClick={() => navigate('/scene-overview')}
+              >
                 Back
               </Button>
             </>
@@ -249,7 +304,12 @@ function ShootingDayDetailPage() {
                 {saving ? <Spinner size="sm" className="mr-2" /> : null}
                 Save
               </Button>
-              <Button className="w-full" color="gray" onClick={handleCancel} disabled={saving}>
+              <Button
+                className="w-full"
+                color="gray"
+                onClick={handleCancel}
+                disabled={saving}
+              >
                 Cancel
               </Button>
             </>
@@ -265,7 +325,9 @@ function ShootingDayDetailPage() {
 
       {/* Shooting Day Details */}
       <Card className="mb-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Shooting Day Details</h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">
+          Shooting Day Details
+        </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <Label htmlFor="date" value="Date" />
@@ -274,7 +336,9 @@ function ShootingDayDetailPage() {
                 id="date"
                 type="date"
                 value={editData.date}
-                onChange={(e) => setEditData({ ...editData, date: e.target.value })}
+                onChange={e =>
+                  setEditData({ ...editData, date: e.target.value })
+                }
               />
             ) : (
               <p className="mt-1 text-lg font-semibold">
@@ -289,7 +353,9 @@ function ShootingDayDetailPage() {
               <TextInput
                 id="location"
                 value={editData.location}
-                onChange={(e) => setEditData({ ...editData, location: e.target.value })}
+                onChange={e =>
+                  setEditData({ ...editData, location: e.target.value })
+                }
                 placeholder="e.g. Studio A, City Center"
               />
             ) : (
@@ -303,7 +369,9 @@ function ShootingDayDetailPage() {
               <TextInput
                 id="name"
                 value={editData.name}
-                onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                onChange={e =>
+                  setEditData({ ...editData, name: e.target.value })
+                }
                 placeholder="e.g. Day 1, Morning shoot"
               />
             ) : (
@@ -317,7 +385,9 @@ function ShootingDayDetailPage() {
               <Textarea
                 id="notes"
                 value={editData.notes}
-                onChange={(e) => setEditData({ ...editData, notes: e.target.value })}
+                onChange={e =>
+                  setEditData({ ...editData, notes: e.target.value })
+                }
                 placeholder="Add any notes or special instructions for this shooting day"
                 rows={4}
               />
@@ -328,15 +398,17 @@ function ShootingDayDetailPage() {
         </div>
       </Card>
 
-
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Left column - Assigned Scenes */}
         <div className="space-y-4">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">Assigned Scenes ({assignedScenes.length})</h2>
+            <h2 className="text-xl font-bold">
+              Assigned Scenes ({assignedScenes.length})
+            </h2>
             {isEditing && (
-              <Button onClick={() => setShowAddSceneModal(true)}>Add Scene</Button>
+              <Button onClick={() => setShowAddSceneModal(true)}>
+                Add Scene
+              </Button>
             )}
           </div>
 
@@ -348,13 +420,18 @@ function ShootingDayDetailPage() {
               </p>
             </Card>
           ) : (
-            assignedScenes.map((scene) => (
-              <Card key={scene.id} className="hover:bg-gray-50 transition-colors">
+            assignedScenes.map(scene => (
+              <Card
+                key={scene.id}
+                className="hover:bg-gray-50 transition-colors"
+              >
                 <div className="flex flex-row">
                   {/* Scene number box */}
                   <Link to={`/scene/${scene.id}`} className="flex">
                     <div className="bg-gray-300 p-6 flex items-center justify-center min-w-[100px]">
-                      <span className="text-4xl font-bold">{scene.sceneNumber}</span>
+                      <span className="text-4xl font-bold">
+                        {scene.sceneNumber}
+                      </span>
                     </div>
                   </Link>
 
@@ -362,22 +439,36 @@ function ShootingDayDetailPage() {
                   <Link to={`/scene/${scene.id}`} className="p-4 flex-grow">
                     <ul className="space-y-1">
                       {scene.location && (
-                        <li className="text-gray-700">Locatie: {scene.location}</li>
+                        <li className="text-gray-700">
+                          Locatie: {scene.location}
+                        </li>
                       )}
                       {scene.characters && scene.characters.length > 0 && (
                         <li className="text-gray-700">
-                          Personages: {scene.characters.map(charId => {
-                            const character = characters.find(c => c.id === charId)
-                            return character ? character.name : null
-                          }).filter(name => name).join(', ')}
+                          Personages:{' '}
+                          {scene.characters
+                            .map(charId => {
+                              const character = characters.find(
+                                c => c.id === charId,
+                              );
+                              return character ? character.name : null;
+                            })
+                            .filter(name => name)
+                            .join(', ')}
                         </li>
                       )}
                       {scene.costumes && scene.costumes.length > 0 && (
                         <li className="text-gray-700">
-                          Kostuums: {scene.costumes.map(costId => {
-                            const costume = costumes.find(c => c.id === costId)
-                            return costume ? costume.name : null
-                          }).filter(name => name).join(', ')}
+                          Kostuums:{' '}
+                          {scene.costumes
+                            .map(costId => {
+                              const costume = costumes.find(
+                                c => c.id === costId,
+                              );
+                              return costume ? costume.name : null;
+                            })
+                            .filter(name => name)
+                            .join(', ')}
                         </li>
                       )}
                     </ul>
@@ -412,13 +503,13 @@ function ShootingDayDetailPage() {
               </p>
             </Card>
           ) : (
-            uniqueCharacterIds.map((characterId) => {
-              const character = characters.find(c => c.id === characterId)
-              if (!character) return null
+            uniqueCharacterIds.map(characterId => {
+              const character = characters.find(c => c.id === characterId);
+              if (!character) return null;
 
-              const characterCostumes = costumes.filter(costume =>
-                costume.character === character.id
-              )
+              const characterCostumes = costumes.filter(
+                costume => costume.character === character.id,
+              );
 
               return (
                 <Card key={characterId}>
@@ -429,21 +520,21 @@ function ShootingDayDetailPage() {
                   </Link>
 
                   {characterCostumes.length === 0 ? (
-                    <p className="text-gray-500">No costumes found for this character.</p>
+                    <p className="text-gray-500">
+                      No costumes found for this character.
+                    </p>
                   ) : (
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {characterCostumes.map((costume) => {
-                        // Get the last uploaded photo for preview
-                        const lastPhoto = costume.photos && costume.photos.length > 0
-                          ? costume.photos[costume.photos.length - 1]
-                          : null;
+                      {characterCostumes.map(costume => {
+                        // Get photo preview from map
+                        const photoPreview = photoPreviewMap[costume.id];
 
                         return (
                           <Link key={costume.id} to={`/costumes/${costume.id}`}>
                             <div className="hover:opacity-75 transition-opacity">
-                              {lastPhoto ? (
+                              {photoPreview ? (
                                 <img
-                                  src={lastPhoto.data}
+                                  src={photoPreview}
                                   alt={costume.name}
                                   className="w-full h-auto rounded-lg shadow-md"
                                 />
@@ -459,19 +550,22 @@ function ShootingDayDetailPage() {
                               </p>
                             </div>
                           </Link>
-                        )
+                        );
                       })}
                     </div>
                   )}
                 </Card>
-              )
+              );
             })
           )}
         </div>
       </div>
 
       {/* Add Scene Modal */}
-      <Modal show={showAddSceneModal} onClose={() => setShowAddSceneModal(false)}>
+      <Modal
+        show={showAddSceneModal}
+        onClose={() => setShowAddSceneModal(false)}
+      >
         <Modal.Header>Add Scene to Shooting Day</Modal.Header>
         <Modal.Body>
           <div className="space-y-4">
@@ -481,20 +575,33 @@ function ShootingDayDetailPage() {
               </p>
             ) : (
               <div className="grid gap-3 max-h-96 overflow-y-auto">
-                {availableScenes.map((scene) => (
-                  <Card key={scene.id} className="hover:bg-gray-50 transition-colors">
+                {availableScenes.map(scene => (
+                  <Card
+                    key={scene.id}
+                    className="hover:bg-gray-50 transition-colors"
+                  >
                     <div className="flex justify-between items-center">
                       <div>
-                        <h4 className="font-semibold">Scene {scene.sceneNumber}</h4>
+                        <h4 className="font-semibold">
+                          Scene {scene.sceneNumber}
+                        </h4>
                         {scene.location && (
-                          <p className="text-sm text-gray-600">Location: {scene.location}</p>
+                          <p className="text-sm text-gray-600">
+                            Location: {scene.location}
+                          </p>
                         )}
                         {scene.characters && scene.characters.length > 0 && (
                           <p className="text-sm text-gray-600">
-                            Characters: {scene.characters.map(charId => {
-                              const character = characters.find(c => c.id === charId)
-                              return character ? character.name : null
-                            }).filter(name => name).join(', ')}
+                            Characters:{' '}
+                            {scene.characters
+                              .map(charId => {
+                                const character = characters.find(
+                                  c => c.id === charId,
+                                );
+                                return character ? character.name : null;
+                              })
+                              .filter(name => name)
+                              .join(', ')}
                           </p>
                         )}
                       </div>
@@ -522,15 +629,17 @@ function ShootingDayDetailPage() {
       <div className="mt-8 text-sm text-gray-500 border-t pt-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <span className="font-medium">Created:</span> {new Date(shootingDay.createdAt).toLocaleString('nl-NL')}
+            <span className="font-medium">Created:</span>{' '}
+            {new Date(shootingDay.createdAt).toLocaleString('nl-NL')}
           </div>
           <div>
-            <span className="font-medium">Last updated:</span> {new Date(shootingDay.updatedAt).toLocaleString('nl-NL')}
+            <span className="font-medium">Last updated:</span>{' '}
+            {new Date(shootingDay.updatedAt).toLocaleString('nl-NL')}
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-export default ShootingDayDetailPage
+export default ShootingDayDetailPage;

@@ -1,15 +1,23 @@
-import { useState, useEffect } from 'react'
-import { Card, Button, Spinner } from 'flowbite-react'
-import { Link } from 'react-router-dom'
-import { getCharacters$, characterCrud, getCostumes, getDatabase } from '../services/db/database'
-import { useProject } from '../contexts/ProjectContext.jsx'
+import { useState, useEffect } from 'react';
+import { Card, Button, Spinner } from 'flowbite-react';
+import { Link } from 'react-router-dom';
+import {
+  getCharacters$,
+  characterCrud,
+  getCostumes,
+  getDatabase,
+  getPhotosByCostume,
+  getPhotoWithFile,
+} from '../services/db/database';
+import { useProject } from '../contexts/ProjectContext.jsx';
 
 function CharacterOverviewPage() {
-  const { currentProjectId } = useProject()
-  const [characters, setCharacters] = useState([])
-  const [costumes, setCostumes] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const { currentProjectId } = useProject();
+  const [characters, setCharacters] = useState([]);
+  const [costumes, setCostumes] = useState([]);
+  const [photoPreviewMap, setPhotoPreviewMap] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     setLoading(true);
@@ -33,10 +41,32 @@ function CharacterOverviewPage() {
           // Load costumes for current project
           const costumesData = await getCostumes(currentProjectId);
           setCostumes(costumesData);
+
+          // Load photo previews for all costumes
+          const photoMap = {};
+          for (const costume of costumesData) {
+            try {
+              const photos = await getPhotosByCostume(costume.id);
+              if (photos.length > 0) {
+                const lastPhotoId = photos[0].id;
+                const photoWithFile = await getPhotoWithFile(lastPhotoId);
+                if (photoWithFile && photoWithFile.imageBlob) {
+                  photoMap[costume.id] = photoWithFile.imageBlob;
+                }
+              }
+            } catch (err) {
+              console.error(
+                `Failed to load photos for costume ${costume.id}:`,
+                err,
+              );
+            }
+          }
+          setPhotoPreviewMap(photoMap);
         } else {
           // No project selected
           setCharacters([]);
           setCostumes([]);
+          setPhotoPreviewMap({});
           setLoading(false);
         }
 
@@ -55,7 +85,7 @@ function CharacterOverviewPage() {
         subscription.unsubscribe();
       }
     };
-  }, [currentProjectId])
+  }, [currentProjectId]);
 
   const handleAddCharacter = async () => {
     if (!currentProjectId) {
@@ -72,13 +102,13 @@ function CharacterOverviewPage() {
         notes: '',
         projects: currentProjectId,
         createdAt: now,
-        updatedAt: now
-      })
+        updatedAt: now,
+      });
       // No need to manually refresh - reactive query will auto-update!
     } catch (error) {
-      alert('Error creating character: ' + error.message)
+      alert('Error creating character: ' + error.message);
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -88,7 +118,7 @@ function CharacterOverviewPage() {
           <span className="ml-2 text-lg">Loading characters...</span>
         </div>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -98,7 +128,7 @@ function CharacterOverviewPage() {
           Error loading data: {error}
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -116,11 +146,11 @@ function CharacterOverviewPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {characters.map((character) => {
+          {characters.map(character => {
             // Get costumes for this character
-            const characterCostumes = costumes.filter(costume =>
-              costume.character === character.id
-            )
+            const characterCostumes = costumes.filter(
+              costume => costume.character === character.id,
+            );
 
             return (
               <Link key={character.id} to={`/characters/${character.id}`}>
@@ -130,15 +160,23 @@ function CharacterOverviewPage() {
 
                     {character.actor && (
                       <div>
-                        <span className="text-sm font-medium text-gray-600">Actor: </span>
-                        <span className="text-sm text-gray-700">{character.actor}</span>
+                        <span className="text-sm font-medium text-gray-600">
+                          Actor:{' '}
+                        </span>
+                        <span className="text-sm text-gray-700">
+                          {character.actor}
+                        </span>
                       </div>
                     )}
 
                     {character.description && (
                       <div>
-                        <span className="text-sm font-medium text-gray-600">Description: </span>
-                        <p className="text-sm text-gray-700 mt-1">{character.description}</p>
+                        <span className="text-sm font-medium text-gray-600">
+                          Description:{' '}
+                        </span>
+                        <p className="text-sm text-gray-700 mt-1">
+                          {character.description}
+                        </p>
                       </div>
                     )}
 
@@ -149,21 +187,23 @@ function CharacterOverviewPage() {
                           Costumes ({characterCostumes.length}):
                         </span>
                         <div className="grid grid-cols-3 gap-2">
-                          {characterCostumes.slice(0, 6).map((costume) => {
-                            // Get the last uploaded photo for preview
-                            const lastPhoto = costume.photos && costume.photos.length > 0
-                              ? costume.photos[costume.photos.length - 1]
-                              : null;
+                          {characterCostumes.slice(0, 6).map(costume => {
+                            // Get photo preview from map
+                            const photoPreview = photoPreviewMap[costume.id];
 
                             return (
                               <div key={costume.id} className="aspect-square">
                                 <img
-                                  src={lastPhoto ? lastPhoto.data : 'https://placehold.co/100x100'}
+                                  src={
+                                    photoPreview
+                                      ? photoPreview
+                                      : 'https://placehold.co/100x100'
+                                  }
                                   alt={costume.name}
                                   className="w-full h-full object-cover rounded"
                                 />
                               </div>
-                            )
+                            );
                           })}
                         </div>
                         {characterCostumes.length > 6 && (
@@ -176,12 +216,12 @@ function CharacterOverviewPage() {
                   </div>
                 </Card>
               </Link>
-            )
+            );
           })}
         </div>
       )}
     </div>
-  )
+  );
 }
 
-export default CharacterOverviewPage
+export default CharacterOverviewPage;

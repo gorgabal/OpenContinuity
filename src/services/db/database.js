@@ -8,13 +8,28 @@ import { Client } from 'appwrite';
 import { generateUUID, getTimestamps } from './utils.js';
 
 // Import schemas and init functions (replication is now centralized)
-import { costumeSchema, initCostumeOperations } from './collections/costumes.js';
-import { characterSchema, initCharacterOperations } from './collections/characters.js';
+import {
+  costumeSchema,
+  initCostumeOperations,
+} from './collections/costumes.js';
+import {
+  characterSchema,
+  initCharacterOperations,
+} from './collections/characters.js';
 import { sceneSchema, initSceneOperations } from './collections/scenes.js';
-import { shootingDaySchema, initShootingDayOperations } from './collections/shootingDays.js';
-import { projectSchema, initProjectOperations } from './collections/projects.js';
+import {
+  shootingDaySchema,
+  initShootingDayOperations,
+} from './collections/shootingDays.js';
+import {
+  projectSchema,
+  initProjectOperations,
+} from './collections/projects.js';
 import { photoSchema, initPhotoOperations } from './collections/photos.js';
-import { photoFileSchema, initPhotoFileOperations } from './collections/photoFiles.js';
+import {
+  photoFileSchema,
+  initPhotoFileOperations,
+} from './collections/photoFiles.js';
 import { createConflictHandler } from './conflictHandler.js';
 import { createAppwriteReplication } from './replication.js';
 
@@ -51,9 +66,13 @@ export async function initDatabase() {
     if (navigator.storage && navigator.storage.persist) {
       const isPersisted = await navigator.storage.persist();
       if (isPersisted) {
-        console.log('Persistent storage granted - data will not be automatically evicted');
+        console.log(
+          'Persistent storage granted - data will not be automatically evicted',
+        );
       } else {
-        console.warn('Persistent storage denied - data may be evicted during storage pressure');
+        console.warn(
+          'Persistent storage denied - data may be evicted during storage pressure',
+        );
       }
     }
 
@@ -104,7 +123,9 @@ export async function initDatabase() {
 
     // Only add collections that don't already exist
     const collectionsToCreate = {};
-    for (const [collectionName, collectionConfig] of Object.entries(collectionsToAdd)) {
+    for (const [collectionName, collectionConfig] of Object.entries(
+      collectionsToAdd,
+    )) {
       if (!database.collections[collectionName]) {
         collectionsToCreate[collectionName] = collectionConfig;
       }
@@ -181,13 +202,13 @@ export async function DatabaseSyncAppwrite() {
     shootingday: {
       entityName: 'ShootingDay',
       // Normalize dates to YYYY-MM-DD format
-      pullModifier: (doc) => {
+      pullModifier: doc => {
         if (doc.date && doc.date.includes('T')) {
           doc.date = doc.date.split('T')[0];
         }
         return doc;
       },
-      pushModifier: (doc) => {
+      pushModifier: doc => {
         if (doc.date && doc.date.includes('T')) {
           doc.date = doc.date.split('T')[0];
         }
@@ -200,7 +221,7 @@ export async function DatabaseSyncAppwrite() {
     photos: {
       retryTime: 3000,
       // Any photo pulled from Appwrite already exists remotely — always mark as synced
-      pullModifier: (doc) => {
+      pullModifier: doc => {
         doc.syncStatus = 'synced';
         return doc;
       },
@@ -240,11 +261,15 @@ export async function DatabaseSyncAppwrite() {
   if (existingProjectsCount === 0) {
     // Local DB is empty - wait for initial sync to prevent duplicate default projects
     // Use a timeout to avoid hanging forever if offline
-    console.log('Local DB is empty, waiting for initial projects sync from Appwrite...');
+    console.log(
+      'Local DB is empty, waiting for initial projects sync from Appwrite...',
+    );
 
-    const timeoutPromise = new Promise((resolve) => {
+    const timeoutPromise = new Promise(resolve => {
       setTimeout(() => {
-        console.warn('Initial sync timeout - proceeding anyway (may be offline)');
+        console.warn(
+          'Initial sync timeout - proceeding anyway (may be offline)',
+        );
         resolve('timeout');
       }, 5000); // 5 second timeout
     });
@@ -302,13 +327,13 @@ export async function DatabaseSyncAppwrite() {
 
   // Start background photo sync to Appwrite Storage
   // Use dynamic import to avoid circular dependency
-  // TODO: clean this code a bit. Dynamic import should not be the solution here. 
+  // TODO: clean this code a bit. Dynamic import should not be the solution here.
   let photoSyncCleanup = null;
   import('../photoUpload.js')
     .then(({ startPhotoSync }) => {
       photoSyncCleanup = startPhotoSync();
     })
-    .catch((err) => {
+    .catch(err => {
       console.error('Failed to start photo sync:', err);
     });
 
@@ -340,12 +365,20 @@ export function triggerSync(collectionName) {
     console.log(`Triggering immediate sync for ${collectionName}`);
     replicationState.reSync();
   } else {
-    console.warn(`No replication state found for collection: ${collectionName}`);
+    console.warn(
+      `No replication state found for collection: ${collectionName}`,
+    );
   }
 }
 
 // Generic CRUD factory function
-export function createCRUDOperations(getDb, collectionName, entityName, defaultData = {}, options = {}) {
+export function createCRUDOperations(
+  getDb,
+  collectionName,
+  entityName,
+  defaultData = {},
+  options = {},
+) {
   const { useTimestamps = true } = options;
 
   return {
@@ -370,12 +403,12 @@ export function createCRUDOperations(getDb, collectionName, entityName, defaultD
       return await db[collectionName].find().exec();
     },
 
-    getById: async (id) => {
+    getById: async id => {
       const db = await getDb();
       return await db[collectionName].findOne(id).exec();
     },
 
-    getById$: async (id) => {
+    getById$: async id => {
       const db = await getDb();
       return db[collectionName].findOne(id).$;
     },
@@ -401,7 +434,10 @@ export function createCRUDOperations(getDb, collectionName, entityName, defaultD
       });
 
       const result = await doc.update({
-        $set: { ...cleanedData, ...(useTimestamps ? getTimestamps(false) : {}) }
+        $set: {
+          ...cleanedData,
+          ...(useTimestamps ? getTimestamps(false) : {}),
+        },
       });
 
       // Trigger immediate sync to Appwrite
@@ -410,7 +446,7 @@ export function createCRUDOperations(getDb, collectionName, entityName, defaultD
       return result;
     },
 
-    delete: async (id) => {
+    delete: async id => {
       const db = await getDb();
       const doc = await db[collectionName].findOne(id).exec();
       if (!doc) {
@@ -424,9 +460,9 @@ export function createCRUDOperations(getDb, collectionName, entityName, defaultD
       return result;
     },
 
-    findByQuery: async (selector) => {
+    findByQuery: async selector => {
       const db = await getDb();
       return await db[collectionName].find({ selector }).exec();
-    }
+    },
   };
 }
