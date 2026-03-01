@@ -4,8 +4,7 @@ import { Link } from 'react-router-dom';
 import {
   getCharacters$,
   characterCrud,
-  getCostumes,
-  getDatabase,
+  getCostumes$,
 } from '../services/db/database';
 import { useProject } from '../contexts/ProjectContext.jsx';
 import { usePhotoPreviews } from '../hooks/usePhotoPreviews.jsx';
@@ -14,33 +13,41 @@ function CharacterOverviewPage() {
   const { currentProjectId } = useProject();
   const [characters, setCharacters] = useState([]);
   const [costumes, setCostumes] = useState([]);
-  const photoPreviewMap = usePhotoPreviews(currentProjectId);
+  const { photoBlobs, loadCostumePhoto } = usePhotoPreviews(currentProjectId);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    costumes.forEach(costume => {
+      if (costume.id && !photoBlobs[costume.id]) {
+        loadCostumePhoto(costume.id);
+      }
+    });
+  }, [costumes, photoBlobs, loadCostumePhoto]);
+
+  useEffect(() => {
     setLoading(true);
-    let subscription;
+    const subscriptions = [];
 
-    const setupSubscription = async () => {
+    const setupSubscriptions = async () => {
       try {
-        await getDatabase();
-
         if (currentProjectId) {
-          // Subscribe to reactive query for characters in current project
           const characters$ = await getCharacters$(currentProjectId);
+          subscriptions.push(
+            characters$.subscribe(charactersData => {
+              setCharacters(charactersData);
+              setError(null);
+              setLoading(false);
+            }),
+          );
 
-          subscription = characters$.subscribe(charactersData => {
-            setCharacters(charactersData);
-            setError(null);
-            setLoading(false);
-          });
-
-          // Load costumes for current project
-          const costumesData = await getCostumes(currentProjectId);
-          setCostumes(costumesData);
+          const costumes$ = await getCostumes$(currentProjectId);
+          subscriptions.push(
+            costumes$.subscribe(costumesData => {
+              setCostumes(costumesData);
+            }),
+          );
         } else {
-          // No project selected
           setCharacters([]);
           setCostumes([]);
           setLoading(false);
@@ -52,13 +59,10 @@ function CharacterOverviewPage() {
       }
     };
 
-    setupSubscription();
+    setupSubscriptions();
 
-    // Cleanup subscription on unmount
     return () => {
-      if (subscription) {
-        subscription.unsubscribe();
-      }
+      subscriptions.forEach(sub => sub.unsubscribe());
     };
   }, [currentProjectId]);
 
@@ -166,8 +170,7 @@ function CharacterOverviewPage() {
                         </span>
                         <div className="grid grid-cols-3 gap-2">
                           {characterCostumes.slice(0, 6).map(costume => {
-                            const photoPreview = photoPreviewMap[costume.id];
-                            const photoBlob = photoPreview?.blob;
+                            const photoBlob = photoBlobs[costume.id];
 
                             return (
                               <div key={costume.id} className="aspect-square">

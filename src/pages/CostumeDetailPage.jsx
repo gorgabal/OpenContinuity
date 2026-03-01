@@ -20,7 +20,7 @@ import {
   getScenes,
   addPhotoWithFile,
   getPhotoWithFile,
-  getPhotosByCostume$,
+  getPhotosByEntity$,
   updatePhoto,
   deletePhotoWithFile,
   triggerSync,
@@ -148,7 +148,7 @@ function CostumeDetailPage() {
         setIsLoadingPhotos(true);
 
         // Subscribe to photos by costume ID for reactive updates
-        const photos$ = await getPhotosByCostume$(id);
+        const photos$ = await getPhotosByEntity$('costumes', id);
         subscription = photos$.subscribe(async photos => {
           const currentRequest = ++requestCount;
 
@@ -208,15 +208,12 @@ function CostumeDetailPage() {
 
       try {
         setIsLoadingPhotos(true);
-        // Add photo to database
-        const newPhoto = await addPhotoWithFile(file);
+        const newPhoto = await addPhotoWithFile(file, currentProjectId);
         console.log('[Photo Upload] Created photo:', newPhoto.id);
 
-        // Set costume ID on the photo (this is the inverse relationship)
         await updatePhoto(newPhoto.id, { costumes: id });
         console.log('[Photo Upload] Updated photo with costume ID');
 
-        // Manually trigger sync for immediate upload
         triggerSync('photos');
         console.log('[Photo Upload] Triggered manual sync');
       } catch (err) {

@@ -1,5 +1,3 @@
-//TODO - FIXME: overview page does not load photo, seems to only load after visiting detail page
-
 import { useState, useEffect } from 'react';
 import { Card, Button, Spinner } from 'flowbite-react';
 import { Link } from 'react-router-dom';
@@ -17,9 +15,17 @@ function CostumeOverviewPage() {
   const { currentProjectId } = useProject();
   const [costumes, setCostumes] = useState([]);
   const [characters, setCharacters] = useState([]);
-  const photoPreviewMap = usePhotoPreviews(currentProjectId);
+  const { photoBlobs, loadCostumePhoto } = usePhotoPreviews(currentProjectId);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    costumes.forEach(costume => {
+      if (costume.id && !photoBlobs[costume.id]) {
+        loadCostumePhoto(costume.id);
+      }
+    });
+  }, [costumes, photoBlobs, loadCostumePhoto]);
 
   useEffect(() => {
     let subscription;
@@ -122,12 +128,8 @@ function CostumeOverviewPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {costumes.map(costume => {
-            // Get photo preview by costume ID
-            const photoPreview = photoPreviewMap[costume.id];
-            const lastPhotoBlob = photoPreview?.blob;
-            const photoCount = photoPreview?.count || 0;
+            const lastPhotoBlob = photoBlobs[costume.id];
 
-            // Find the character name by ID
             const character =
               characters && characters.length > 0
                 ? characters.find(c => c.id === costume.character)
@@ -153,11 +155,6 @@ function CostumeOverviewPage() {
                   <p className="font-normal text-gray-700">
                     Scene: {costume.scene || 'Not assigned'}
                   </p>
-                  {photoCount > 0 && (
-                    <p className="font-normal text-gray-500 text-sm">
-                      {photoCount} photo{photoCount !== 1 ? 's' : ''}
-                    </p>
-                  )}
                 </Card>
               </Link>
             );

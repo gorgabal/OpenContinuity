@@ -1,69 +1,63 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
+  getPhotosByEntity$,
   getPhotoWithFile,
-  getPhotosByProject$,
 } from '../services/db/database.js';
 
 export function usePhotoPreviews(projectId) {
-  const [photoPreviewMap, setPhotoPreviewMap] = useState({});
+  const [photoBlobs, setPhotoBlobs] = useState({});
+  const [loadingCostumes, setLoadingCostumes] = useState(new Set());
+  const subscriptionsRef = useRef([]);
 
   useEffect(() => {
-    let photoSubscription;
+    setPhotoBlobs({});
+    subscriptionsRef.current.forEach(sub => sub.unsubscribe());
+    subscriptionsRef.current = [];
+  }, [projectId]);
 
-    const setupPhotoSubscription = async () => {
-      if (!projectId) {
-        setPhotoPreviewMap({});
+  useEffect(() => {
+    return () => {
+      subscriptionsRef.current.forEach(sub => sub.unsubscribe());
+    };
+  }, []);
+
+  const loadCostumePhoto = useCallback(
+    async costumeId => {
+      if (!costumeId || loadingCostumes.has(costumeId)) {
         return;
       }
 
-      const photos$ = await getPhotosByProject$(projectId);
-      photoSubscription = photos$.subscribe(async photos => {
-        const previewMap = {};
+      setLoadingCostumes(prev => new Set([...prev, costumeId]));
 
-        // Group photos by costumeId, keep track of counts
-        const photosByCostume = {};
-        photos.forEach(photo => {
-          if (photo.costumes) {
-            if (!photosByCostume[photo.costumes]) {
-              photosByCostume[photo.costumes] = [];
-            }
-            photosByCostume[photo.costumes].push(photo);
+      try {
+        const photos$ = await getPhotosByEntity$('costumes', costumeId);
+        const subscription = photos$.subscribe(async photos => {
+          if (photos.length === 0) {
+            setPhotoBlobs(prev => ({ ...prev, [costumeId]: null }));
+            return;
           }
+
+          const latestPhotoId = photos[0].id;
+          const photoWithFile = await getPhotoWithFile(latestPhotoId);
+          setPhotoBlobs(prev => ({
+            ...prev,
+            [costumeId]: photoWithFile?.imageBlob ?? null,
+          }));
         });
 
-        // Load blob for latest photo of each costume
-        for (const [costumeId, costumePhotos] of Object.entries(
-          photosByCostume,
-        )) {
-          const latestPhoto = costumePhotos[0];
-          try {
-            const photoWithFile = await getPhotoWithFile(latestPhoto.id);
-            if (photoWithFile && photoWithFile.imageBlob) {
-              previewMap[costumeId] = {
-                blob: photoWithFile.imageBlob,
-                count: costumePhotos.length,
-              };
-            }
-          } catch (err) {
-            console.error(
-              `Failed to load photo for costume ${costumeId}:`,
-              err,
-            );
-          }
-        }
-
-        setPhotoPreviewMap(previewMap);
-      });
-    };
-
-    setupPhotoSubscription();
-
-    return () => {
-      if (photoSubscription) {
-        photoSubscription.unsubscribe();
+        subscriptionsRef.current.push(subscription);
+      } catch (err) {
+        console.error(`Failed to load photo for costume ${costumeId}:`, err);
+      } finally {
+        setLoadingCostumes(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(costumeId);
+          return newSet;
+        });
       }
-    };
-  }, [projectId]);
+    },
+    [loadingCostumes],
+  );
 
-  return photoPreviewMap;
+  return { photoBlobs, loadCostumePhoto };
 }

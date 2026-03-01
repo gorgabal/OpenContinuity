@@ -11,11 +11,9 @@ import {
 } from 'flowbite-react';
 import {
   characterCrud,
-  getCostumesByCharacterId,
+  getCostumes$,
   assignCostumeToCharacter,
   unassignCostumeFromCharacter,
-  getCostumes,
-  costumeCrud,
 } from '../services/db/database';
 import { useProject } from '../contexts/ProjectContext.jsx';
 import { usePhotoPreviews } from '../hooks/usePhotoPreviews.jsx';
@@ -28,12 +26,20 @@ function CharacterDetailPage() {
   const [character, setCharacter] = useState(null);
   const [costumes, setCostumes] = useState([]);
   const [availableCostumes, setAvailableCostumes] = useState([]);
-  const photoPreviewMap = usePhotoPreviews(currentProjectId);
+  const { photoBlobs, loadCostumePhoto } = usePhotoPreviews(currentProjectId);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showAddCostumeModal, setShowAddCostumeModal] = useState(false);
+
+  useEffect(() => {
+    [...costumes, ...availableCostumes].forEach(costume => {
+      if (costume.id && !photoBlobs[costume.id]) {
+        loadCostumePhoto(costume.id);
+      }
+    });
+  }, [costumes, availableCostumes, photoBlobs, loadCostumePhoto]);
 
   const [editData, setEditData] = useState({
     name: '',
@@ -46,38 +52,35 @@ function CharacterDetailPage() {
     if (!id) return;
 
     setLoading(true);
-    let subscription;
+    const subscriptions = [];
 
-    const setupSubscription = async () => {
+    const setupSubscriptions = async () => {
       try {
-        // Subscribe to reactive query - this will auto-update when data changes
         const character$ = await characterCrud.getById$(id);
+        subscriptions.push(
+          character$.subscribe(characterData => {
+            if (!characterData) {
+              setError('Character not found');
+              setLoading(false);
+              return;
+            }
 
-        subscription = character$.subscribe(characterData => {
-          if (!characterData) {
-            setError('Character not found');
+            setCharacter(characterData);
+            setError(null);
             setLoading(false);
-            return;
-          }
+          }),
+        );
 
-          setCharacter(characterData);
-          setError(null);
-          setLoading(false);
-        });
-
-        // Load costumes filtered by current project
         if (currentProjectId) {
-          const [characterCostumes, allCostumes] = await Promise.all([
-            getCostumesByCharacterId(id),
-            getCostumes(currentProjectId),
-          ]);
-
-          setCostumes(characterCostumes);
-
-          const unassignedCostumes = allCostumes.filter(
-            costume => !costume.character || costume.character === null,
+          const costumes$ = await getCostumes$(currentProjectId);
+          subscriptions.push(
+            costumes$.subscribe(allCostumes => {
+              setCostumes(allCostumes.filter(c => c.character === id));
+              setAvailableCostumes(
+                allCostumes.filter(c => !c.character || c.character === null),
+              );
+            }),
           );
-          setAvailableCostumes(unassignedCostumes);
         } else {
           setCostumes([]);
           setAvailableCostumes([]);
@@ -89,13 +92,10 @@ function CharacterDetailPage() {
       }
     };
 
-    setupSubscription();
+    setupSubscriptions();
 
-    // Cleanup subscription on unmount
     return () => {
-      if (subscription) {
-        subscription.unsubscribe();
-      }
+      subscriptions.forEach(sub => sub.unsubscribe());
     };
   }, [id, currentProjectId]);
 
@@ -177,19 +177,6 @@ function CharacterDetailPage() {
   const handleAssignCostume = async costumeId => {
     try {
       await assignCostumeToCharacter(costumeId, id);
-
-      // Refresh costume data
-      const [updatedCostumes, allCostumes] = await Promise.all([
-        getCostumesByCharacterId(id),
-        costumeCrud.getAll(),
-      ]);
-
-      setCostumes(updatedCostumes);
-      setAvailableCostumes(
-        allCostumes.filter(
-          costume => !costume.character || costume.character === null,
-        ),
-      );
       setShowAddCostumeModal(false);
     } catch (err) {
       console.error('Error assigning costume:', err);
@@ -200,19 +187,6 @@ function CharacterDetailPage() {
   const handleUnassignCostume = async costumeId => {
     try {
       await unassignCostumeFromCharacter(costumeId);
-
-      // Refresh costume data
-      const [updatedCostumes, allCostumes] = await Promise.all([
-        getCostumesByCharacterId(id),
-        costumeCrud.getAll(),
-      ]);
-
-      setCostumes(updatedCostumes);
-      setAvailableCostumes(
-        allCostumes.filter(
-          costume => !costume.character || costume.character === null,
-        ),
-      );
     } catch (err) {
       console.error('Error unassigning costume:', err);
       setError(err.message);
@@ -399,8 +373,7 @@ function CharacterDetailPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {costumes.map(costume => {
-              const photoPreview = photoPreviewMap[costume.id];
-              const photoBlob = photoPreview?.blob;
+              const photoBlob = photoBlobs[costume.id];
 
               return (
                 <Card key={costume.id} className="relative">
@@ -455,8 +428,7 @@ function CharacterDetailPage() {
             ) : (
               <div className="grid gap-3 max-h-96 overflow-y-auto">
                 {availableCostumes.map(costume => {
-                  const photoPreview = photoPreviewMap[costume.id];
-                  const photoBlob = photoPreview?.blob;
+                  const photoBlob = photoBlobs[costume.id];
 
                   return (
                     <Card

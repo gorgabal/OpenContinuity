@@ -299,30 +299,7 @@ export async function getPendingPhotos() {
   return photos;
 }
 
-// Get photos by costume ID
-export async function getPhotosByCostume(costumeId) {
-  const db = await getDb();
-  const photos = await db.photos
-    .find({
-      selector: {
-        costumes: costumeId,
-      },
-    })
-    .exec();
-  return photos.sort((a, b) => b.createdAt - a.createdAt);
-}
 
-// Get photos by costume ID as observable
-export async function getPhotosByCostume$(costumeId) {
-  const db = await getDb();
-  return db.photos
-    .find({
-      selector: {
-        costumes: costumeId,
-      },
-    })
-    .$.pipe(map(photos => photos.sort((a, b) => b.createdAt - a.createdAt)));
-}
 
 // Generic: Get photos by any parent entity
 export async function getPhotosByEntity(entityType, entityId) {
