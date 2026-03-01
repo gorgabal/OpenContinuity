@@ -6,16 +6,15 @@ import {
   characterCrud,
   getCostumes,
   getDatabase,
-  getPhotosByCostume,
-  getPhotoWithFile,
 } from '../services/db/database';
 import { useProject } from '../contexts/ProjectContext.jsx';
+import { usePhotoPreviews } from '../hooks/usePhotoPreviews.jsx';
 
 function CharacterOverviewPage() {
   const { currentProjectId } = useProject();
   const [characters, setCharacters] = useState([]);
   const [costumes, setCostumes] = useState([]);
-  const [photoPreviewMap, setPhotoPreviewMap] = useState({});
+  const photoPreviewMap = usePhotoPreviews(currentProjectId);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -25,7 +24,6 @@ function CharacterOverviewPage() {
 
     const setupSubscription = async () => {
       try {
-
         await getDatabase();
 
         if (currentProjectId) {
@@ -41,35 +39,12 @@ function CharacterOverviewPage() {
           // Load costumes for current project
           const costumesData = await getCostumes(currentProjectId);
           setCostumes(costumesData);
-
-          // Load photo previews for all costumes
-          const photoMap = {};
-          for (const costume of costumesData) {
-            try {
-              const photos = await getPhotosByCostume(costume.id);
-              if (photos.length > 0) {
-                const lastPhotoId = photos[0].id;
-                const photoWithFile = await getPhotoWithFile(lastPhotoId);
-                if (photoWithFile && photoWithFile.imageBlob) {
-                  photoMap[costume.id] = photoWithFile.imageBlob;
-                }
-              }
-            } catch (err) {
-              console.error(
-                `Failed to load photos for costume ${costume.id}:`,
-                err,
-              );
-            }
-          }
-          setPhotoPreviewMap(photoMap);
         } else {
           // No project selected
           setCharacters([]);
           setCostumes([]);
-          setPhotoPreviewMap({});
           setLoading(false);
         }
-
       } catch (err) {
         console.error('Error loading characters:', err);
         setError(err.message);
@@ -141,7 +116,8 @@ function CharacterOverviewPage() {
       {characters.length === 0 ? (
         <Card>
           <p className="text-gray-500 text-center py-8">
-            No characters found. Click Add Character to create your first character.
+            No characters found. Click Add Character to create your first
+            character.
           </p>
         </Card>
       ) : (
@@ -156,7 +132,9 @@ function CharacterOverviewPage() {
               <Link key={character.id} to={`/characters/${character.id}`}>
                 <Card className="hover:bg-gray-50 transition-colors">
                   <div className="space-y-4">
-                    <h2 className="text-xl font-bold text-gray-900">{character.name}</h2>
+                    <h2 className="text-xl font-bold text-gray-900">
+                      {character.name}
+                    </h2>
 
                     {character.actor && (
                       <div>
@@ -188,15 +166,15 @@ function CharacterOverviewPage() {
                         </span>
                         <div className="grid grid-cols-3 gap-2">
                           {characterCostumes.slice(0, 6).map(costume => {
-                            // Get photo preview from map
                             const photoPreview = photoPreviewMap[costume.id];
+                            const photoBlob = photoPreview?.blob;
 
                             return (
                               <div key={costume.id} className="aspect-square">
                                 <img
                                   src={
-                                    photoPreview
-                                      ? photoPreview
+                                    photoBlob
+                                      ? photoBlob
                                       : 'https://placehold.co/100x100'
                                   }
                                   alt={costume.name}

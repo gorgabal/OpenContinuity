@@ -388,7 +388,7 @@ function CostumeDetailPage() {
             ) : photos.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <p className="mb-2">No photos yet.</p>
-                <p className="text-sm">Click "Add Photo" to get started.</p>
+                <p className="text-sm">Click Add Photo to get started.</p>
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

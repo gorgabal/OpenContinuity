@@ -1,3 +1,5 @@
+//TODO - FIXME: overview page does not load photo, seems to only load after visiting detail page
+
 import { useState, useEffect } from 'react';
 import { Card, Button, Spinner } from 'flowbite-react';
 import { Link } from 'react-router-dom';
@@ -7,16 +9,15 @@ import {
   getCostumes$,
   costumeCrud,
   getCharacters,
-  getPhotoWithFile,
-  getPhotosByCostume,
 } from '../services/db/database.js';
 import { useProject } from '../contexts/ProjectContext.jsx';
+import { usePhotoPreviews } from '../hooks/usePhotoPreviews.jsx';
 
 function CostumeOverviewPage() {
   const { currentProjectId } = useProject();
   const [costumes, setCostumes] = useState([]);
   const [characters, setCharacters] = useState([]);
-  const [photoPreviewMap, setPhotoPreviewMap] = useState({});
+  const photoPreviewMap = usePhotoPreviews(currentProjectId);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -66,55 +67,6 @@ function CostumeOverviewPage() {
       }
     };
   }, [currentProjectId]);
-
-  // Load photo previews for costumes
-  useEffect(() => {
-    const loadPhotoPreviews = async () => {
-      // Load all photo previews concurrently
-      const previews = await Promise.all(
-        costumes.map(async costume => {
-          try {
-            const photos = await getPhotosByCostume(costume.id);
-            if (photos.length > 0) {
-              const latestPhoto = photos[0]; // Already sorted by createdAt desc
-              const photoData = await getPhotoWithFile(latestPhoto.id);
-              if (photoData && photoData.imageBlob) {
-                return {
-                  costumeId: costume.id,
-                  blob: photoData.imageBlob,
-                  count: photos.length,
-                };
-              }
-            }
-          } catch (err) {
-            console.error(
-              `Failed to load photos for costume ${costume.id}:`,
-              err,
-            );
-          }
-          return null;
-        }),
-      );
-
-      // Update state with loaded previews (only add new ones, don't overwrite existing)
-      setPhotoPreviewMap(prev => {
-        const updated = { ...prev };
-        previews.forEach(preview => {
-          if (preview && !updated[preview.costumeId]) {
-            updated[preview.costumeId] = {
-              blob: preview.blob,
-              count: preview.count,
-            };
-          }
-        });
-        return updated;
-      });
-    };
-
-    if (costumes.length > 0) {
-      loadPhotoPreviews();
-    }
-  }, [costumes]);
 
   const handleAddCostume = async () => {
     if (!currentProjectId) {

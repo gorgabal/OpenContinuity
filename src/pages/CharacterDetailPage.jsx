@@ -16,10 +16,9 @@ import {
   unassignCostumeFromCharacter,
   getCostumes,
   costumeCrud,
-  getPhotosByCostume,
-  getPhotoWithFile,
 } from '../services/db/database';
 import { useProject } from '../contexts/ProjectContext.jsx';
+import { usePhotoPreviews } from '../hooks/usePhotoPreviews.jsx';
 
 function CharacterDetailPage() {
   const { id } = useParams();
@@ -29,8 +28,7 @@ function CharacterDetailPage() {
   const [character, setCharacter] = useState(null);
   const [costumes, setCostumes] = useState([]);
   const [availableCostumes, setAvailableCostumes] = useState([]);
-  //TODO: remove photoPreviewMap, load from rxdb directly. This seems like needless abstraction. 
-  const [photoPreviewMap, setPhotoPreviewMap] = useState({});
+  const photoPreviewMap = usePhotoPreviews(currentProjectId);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -80,35 +78,9 @@ function CharacterDetailPage() {
             costume => !costume.character || costume.character === null,
           );
           setAvailableCostumes(unassignedCostumes);
-
-          // Load photo previews for all costumes (both assigned and available)
-          const allCostumesToLoad = [
-            ...characterCostumes,
-            ...unassignedCostumes,
-          ];
-          const photoMap = {};
-          for (const costume of allCostumesToLoad) {
-            try {
-              const photos = await getPhotosByCostume(costume.id);
-              if (photos.length > 0) {
-                const lastPhotoId = photos[0].id;
-                const photoWithFile = await getPhotoWithFile(lastPhotoId);
-                if (photoWithFile && photoWithFile.imageBlob) {
-                  photoMap[costume.id] = photoWithFile.imageBlob;
-                }
-              }
-            } catch (err) {
-              console.error(
-                `Failed to load photos for costume ${costume.id}:`,
-                err,
-              );
-            }
-          }
-          setPhotoPreviewMap(photoMap);
         } else {
           setCostumes([]);
           setAvailableCostumes([]);
-          setPhotoPreviewMap({});
         }
       } catch (err) {
         console.error('Error loading character:', err);
@@ -427,15 +399,15 @@ function CharacterDetailPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {costumes.map(costume => {
-              // Get photo preview from map
               const photoPreview = photoPreviewMap[costume.id];
+              const photoBlob = photoPreview?.blob;
 
               return (
                 <Card key={costume.id} className="relative">
                   <Link to={`/costumes/${costume.id}`}>
-                    {photoPreview ? (
+                    {photoBlob ? (
                       <img
-                        src={photoPreview}
+                        src={photoBlob}
                         alt={costume.name}
                         className="w-full h-48 object-cover rounded"
                       />
@@ -483,8 +455,8 @@ function CharacterDetailPage() {
             ) : (
               <div className="grid gap-3 max-h-96 overflow-y-auto">
                 {availableCostumes.map(costume => {
-                  // Get photo preview from map
                   const photoPreview = photoPreviewMap[costume.id];
+                  const photoBlob = photoPreview?.blob;
 
                   return (
                     <Card
@@ -492,9 +464,9 @@ function CharacterDetailPage() {
                       className="hover:bg-gray-50 transition-colors"
                     >
                       <div className="flex items-center space-x-4">
-                        {photoPreview ? (
+                        {photoBlob ? (
                           <img
-                            src={photoPreview}
+                            src={photoBlob}
                             alt={costume.name}
                             className="w-16 h-20 object-cover rounded"
                           />

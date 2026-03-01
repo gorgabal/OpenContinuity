@@ -17,10 +17,9 @@ import {
   getCostumes,
   getScenes,
   getCharacters,
-  getPhotosByCostume,
-  getPhotoWithFile,
 } from '../services/db/database';
 import { useProject } from '../contexts/ProjectContext.jsx';
+import { usePhotoPreviews } from '../hooks/usePhotoPreviews.jsx';
 
 function ShootingDayDetailPage() {
   const { id } = useParams();
@@ -31,7 +30,7 @@ function ShootingDayDetailPage() {
   const [assignedScenes, setAssignedScenes] = useState([]);
   const [characters, setCharacters] = useState([]);
   const [costumes, setCostumes] = useState([]);
-  const [photoPreviewMap, setPhotoPreviewMap] = useState({});
+  const photoPreviewMap = usePhotoPreviews(currentProjectId);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -85,32 +84,10 @@ function ShootingDayDetailPage() {
               ),
           );
           setAvailableScenes(unassignedScenes);
-
-          // Load photo previews for all costumes
-          const photoMap = {};
-          for (const costume of costumesData) {
-            try {
-              const photos = await getPhotosByCostume(costume.id);
-              if (photos.length > 0) {
-                const lastPhotoId = photos[0].id;
-                const photoWithFile = await getPhotoWithFile(lastPhotoId);
-                if (photoWithFile && photoWithFile.imageBlob) {
-                  photoMap[costume.id] = photoWithFile.imageBlob;
-                }
-              }
-            } catch (err) {
-              console.error(
-                `Failed to load photos for costume ${costume.id}:`,
-                err,
-              );
-            }
-          }
-          setPhotoPreviewMap(photoMap);
         } else {
           setCharacters([]);
           setCostumes([]);
           setAvailableScenes([]);
-          setPhotoPreviewMap({});
         }
 
         // Initialize edit data
@@ -526,15 +503,15 @@ function ShootingDayDetailPage() {
                   ) : (
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {characterCostumes.map(costume => {
-                        // Get photo preview from map
                         const photoPreview = photoPreviewMap[costume.id];
+                        const photoBlob = photoPreview?.blob;
 
                         return (
                           <Link key={costume.id} to={`/costumes/${costume.id}`}>
                             <div className="hover:opacity-75 transition-opacity">
-                              {photoPreview ? (
+                              {photoBlob ? (
                                 <img
-                                  src={photoPreview}
+                                  src={photoBlob}
                                   alt={costume.name}
                                   className="w-full h-auto rounded-lg shadow-md"
                                 />

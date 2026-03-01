@@ -52,8 +52,12 @@ export const photoSchema = {
       ref: 'shootingday',
       default: null,
     },
+    projects: {
+      type: 'string',
+      ref: 'projects',
+    },
   },
-  required: ['id', 'localFilename', 'createdAt', 'updatedAt'],
+  required: ['id', 'localFilename', 'projects', 'createdAt', 'updatedAt'],
 };
 
 // This will be set by database.js after initialization
@@ -162,7 +166,7 @@ async function downloadPhotoFromAppwrite(photoId, bucketUrl) {
 }
 
 // Add photo with file - stores metadata in photos collection and file in photofiles collection
-export async function addPhotoWithFile(file) {
+export async function addPhotoWithFile(file, projectId) {
   const db = await getDb();
 
   // Compress the image first
@@ -181,6 +185,7 @@ export async function addPhotoWithFile(file) {
     localFilename: filename,
     bucketUrl: null,
     syncStatus: 'pending',
+    projects: projectId,
   };
 
   // Add photo metadata
@@ -205,6 +210,7 @@ export async function addPhotoWithFile(file) {
 
 // Get photo with its file data
 // If local blob is missing but photo is synced, download from Appwrite
+// TODO: try to use rxdb attachments instead of blobs
 export async function getPhotoWithFile(photoId) {
   const db = await getDb();
   const photo = await getPhotoById(photoId);
@@ -338,6 +344,18 @@ export async function getPhotosByEntity$(entityType, entityId) {
     .find({
       selector: {
         [entityType]: entityId,
+      },
+    })
+    .$.pipe(map(photos => photos.sort((a, b) => b.createdAt - a.createdAt)));
+}
+
+// Get photos by project ID as observable
+export async function getPhotosByProject$(projectId) {
+  const db = await getDb();
+  return db.photos
+    .find({
+      selector: {
+        projects: projectId,
       },
     })
     .$.pipe(map(photos => photos.sort((a, b) => b.createdAt - a.createdAt)));
