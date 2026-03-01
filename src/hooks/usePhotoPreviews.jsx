@@ -1,63 +1,72 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { switchMap } from 'rxjs';
 import {
   getPhotosByEntity$,
   getPhotoWithFile,
 } from '../services/db/database.js';
 
-export function usePhotoPreviews(projectId) {
+export function usePhotoPreviews(projectId, entityType) {
   const [photoBlobs, setPhotoBlobs] = useState({});
-  const [loadingCostumes, setLoadingCostumes] = useState(new Set());
-  const subscriptionsRef = useRef([]);
+  const [loadingEntities, setLoadingEntities] = useState(new Set());
+  const subscriptionsRef = useRef({});
 
   useEffect(() => {
     setPhotoBlobs({});
-    subscriptionsRef.current.forEach(sub => sub.unsubscribe());
-    subscriptionsRef.current = [];
+    Object.values(subscriptionsRef.current).forEach(sub => sub.unsubscribe());
+    subscriptionsRef.current = {};
   }, [projectId]);
 
   useEffect(() => {
     return () => {
-      subscriptionsRef.current.forEach(sub => sub.unsubscribe());
+      Object.values(subscriptionsRef.current).forEach(sub => sub.unsubscribe());
     };
   }, []);
 
-  const loadCostumePhoto = useCallback(
-    async costumeId => {
-      if (!costumeId || loadingCostumes.has(costumeId)) {
+  const loadEntityPhoto = useCallback(
+    async entityId => {
+      if (!entityId || loadingEntities.has(entityId)) {
         return;
       }
 
-      setLoadingCostumes(prev => new Set([...prev, costumeId]));
+      setLoadingEntities(prev => new Set([...prev, entityId]));
 
       try {
-        const photos$ = await getPhotosByEntity$('costumes', costumeId);
-        const subscription = photos$.subscribe(async photos => {
-          if (photos.length === 0) {
-            setPhotoBlobs(prev => ({ ...prev, [costumeId]: null }));
-            return;
-          }
+        const photos$ = await getPhotosByEntity$(entityType, entityId);
+        const subscription = photos$
+          .pipe(
+            switchMap(async photos => {
+              if (photos.length === 0) {
+                return [];
+              }
 
-          const latestPhotoId = photos[0].id;
-          const photoWithFile = await getPhotoWithFile(latestPhotoId);
-          setPhotoBlobs(prev => ({
-            ...prev,
-            [costumeId]: photoWithFile?.imageBlob ?? null,
-          }));
-        });
+              const recentPhotos = photos.slice(0, 4);
+              const photoPromises = recentPhotos.map(async photo => {
+                const photoWithFile = await getPhotoWithFile(photo.id);
+                return photoWithFile?.imageBlob ?? null;
+              });
+              return await Promise.all(photoPromises);
+            }),
+          )
+          .subscribe(photoUrls => {
+            setPhotoBlobs(prev => ({
+              ...prev,
+              [entityId]: photoUrls,
+            }));
+          });
 
-        subscriptionsRef.current.push(subscription);
+        subscriptionsRef.current[entityId] = subscription;
       } catch (err) {
-        console.error(`Failed to load photo for costume ${costumeId}:`, err);
+        console.error(`Failed to load photo for entity ${entityId}:`, err);
       } finally {
-        setLoadingCostumes(prev => {
+        setLoadingEntities(prev => {
           const newSet = new Set(prev);
-          newSet.delete(costumeId);
+          newSet.delete(entityId);
           return newSet;
         });
       }
     },
-    [loadingCostumes],
+    [loadingEntities, entityType],
   );
 
-  return { photoBlobs, loadCostumePhoto };
+  return { photoBlobs, loadEntityPhoto };
 }

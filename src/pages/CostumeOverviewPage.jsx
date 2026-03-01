@@ -15,17 +15,20 @@ function CostumeOverviewPage() {
   const { currentProjectId } = useProject();
   const [costumes, setCostumes] = useState([]);
   const [characters, setCharacters] = useState([]);
-  const { photoBlobs, loadCostumePhoto } = usePhotoPreviews(currentProjectId);
+  const { photoBlobs, loadEntityPhoto } = usePhotoPreviews(
+    currentProjectId,
+    'costumes',
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     costumes.forEach(costume => {
       if (costume.id && !photoBlobs[costume.id]) {
-        loadCostumePhoto(costume.id);
+        loadEntityPhoto(costume.id);
       }
     });
-  }, [costumes, photoBlobs, loadCostumePhoto]);
+  }, [costumes, photoBlobs, loadEntityPhoto]);
 
   useEffect(() => {
     let subscription;
@@ -128,7 +131,7 @@ function CostumeOverviewPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {costumes.map(costume => {
-            const lastPhotoBlob = photoBlobs[costume.id];
+            const photoUrls = photoBlobs[costume.id] || [];
 
             const character =
               characters && characters.length > 0
@@ -139,12 +142,17 @@ function CostumeOverviewPage() {
             return (
               <Link key={costume.id} to={`/costumes/${costume.id}`}>
                 <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
-                  {lastPhotoBlob && (
-                    <img
-                      src={lastPhotoBlob}
-                      alt={costume.name}
-                      className="rounded-t-lg h-48 w-full object-cover"
-                    />
+                  {photoUrls.length > 0 && (
+                    <div className="grid grid-cols-2 gap-1 rounded-t-lg overflow-hidden">
+                      {photoUrls.map((url, idx) => (
+                        <img
+                          key={idx}
+                          src={url}
+                          alt={`${costume.name} photo ${idx + 1}`}
+                          className="h-24 w-full object-cover"
+                        />
+                      ))}
+                    </div>
                   )}
                   <h5 className="text-xl font-bold tracking-tight text-gray-900">
                     {costume.name || 'Untitled Costume'}

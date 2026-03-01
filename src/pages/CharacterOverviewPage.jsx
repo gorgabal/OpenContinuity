@@ -13,17 +13,20 @@ function CharacterOverviewPage() {
   const { currentProjectId } = useProject();
   const [characters, setCharacters] = useState([]);
   const [costumes, setCostumes] = useState([]);
-  const { photoBlobs, loadCostumePhoto } = usePhotoPreviews(currentProjectId);
+  const { photoBlobs, loadEntityPhoto } = usePhotoPreviews(
+    currentProjectId,
+    'costumes',
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     costumes.forEach(costume => {
       if (costume.id && !photoBlobs[costume.id]) {
-        loadCostumePhoto(costume.id);
+        loadEntityPhoto(costume.id);
       }
     });
-  }, [costumes, photoBlobs, loadCostumePhoto]);
+  }, [costumes, photoBlobs, loadEntityPhoto]);
 
   useEffect(() => {
     setLoading(true);
