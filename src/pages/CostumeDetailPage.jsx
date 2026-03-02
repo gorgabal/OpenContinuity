@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { switchMap } from 'rxjs';
 import { useParams, Link } from 'react-router-dom';
 import {
   Card,
@@ -138,7 +139,6 @@ function CostumeDetailPage() {
   // Load photos for the current costume
   useEffect(() => {
     let subscription;
-    let requestCount = 0;
 
     const loadPhotos = async () => {
       if (isLoading) return;
@@ -149,26 +149,25 @@ function CostumeDetailPage() {
 
         // Subscribe to photos by costume ID for reactive updates
         const photos$ = await getPhotosByEntity$('costumes', id);
-        subscription = photos$.subscribe(async photos => {
-          const currentRequest = ++requestCount;
+        subscription = photos$
+          .pipe(
+            switchMap(async photos => {
+              const photosWithData = await Promise.all(
+                photos.map(async photo => {
+                  const photoWithFile = await getPhotoWithFile(photo.id);
+                  return photoWithFile;
+                }),
+              );
 
-          // Load photo data with blobs
-          const photosWithData = await Promise.all(
-            photos.map(async photo => {
-              const photoWithFile = await getPhotoWithFile(photo.id);
-              return photoWithFile;
+              return photosWithData.filter(
+                p => p !== null && p.imageBlob !== null,
+              );
             }),
-          );
-
-          // Only update if this is still the most recent request
-          if (currentRequest === requestCount) {
-            // Filter out null photos and photos with missing image data
-            setPhotos(
-              photosWithData.filter(p => p !== null && p.imageBlob !== null),
-            );
+          )
+          .subscribe(filteredPhotos => {
+            setPhotos(filteredPhotos);
             setIsLoadingPhotos(false);
-          }
-        });
+          });
       } catch (err) {
         console.error('Failed to load photos:', err);
         setIsLoadingPhotos(false);
