@@ -26,7 +26,10 @@ function CharacterDetailPage() {
   const [character, setCharacter] = useState(null);
   const [costumes, setCostumes] = useState([]);
   const [availableCostumes, setAvailableCostumes] = useState([]);
-  const { photoBlobs, loadCostumePhoto } = usePhotoPreviews(currentProjectId);
+  const { photoBlobs, loadEntityPhoto } = usePhotoPreviews(
+    currentProjectId,
+    'costumes',
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -36,10 +39,10 @@ function CharacterDetailPage() {
   useEffect(() => {
     [...costumes, ...availableCostumes].forEach(costume => {
       if (costume.id && !photoBlobs[costume.id]) {
-        loadCostumePhoto(costume.id);
+        loadEntityPhoto(costume.id);
       }
     });
-  }, [costumes, availableCostumes, photoBlobs, loadCostumePhoto]);
+  }, [costumes, availableCostumes, photoBlobs, loadEntityPhoto]);
 
   const [editData, setEditData] = useState({
     name: '',
