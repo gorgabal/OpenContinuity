@@ -1,45 +1,60 @@
-import { useState, useEffect } from 'react'
-import { Card, Button, Spinner } from 'flowbite-react'
-import { Link } from 'react-router-dom'
-import { getCharactersByProject$, addCharacter, getCostumesByProject, getDatabase } from '../services/database'
-import { useProject } from '../contexts/ProjectContext.jsx'
+import { useState, useEffect } from 'react';
+import { Card, Button, Spinner } from 'flowbite-react';
+import { Link } from 'react-router-dom';
+import {
+  getCharacters$,
+  characterCrud,
+  getCostumes$,
+} from '../services/db/database';
+import { useProject } from '../contexts/ProjectContext.jsx';
+import { usePhotoPreviews } from '../hooks/usePhotoPreviews.jsx';
 
 function CharacterOverviewPage() {
-  const { currentProjectId } = useProject()
-  const [characters, setCharacters] = useState([])
-  const [costumes, setCostumes] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const { currentProjectId } = useProject();
+  const [characters, setCharacters] = useState([]);
+  const [costumes, setCostumes] = useState([]);
+  const { photoBlobs, loadEntityPhoto } = usePhotoPreviews(
+    currentProjectId,
+    'costumes',
+  );
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    costumes.forEach(costume => {
+      if (costume.id && !photoBlobs[costume.id]) {
+        loadEntityPhoto(costume.id);
+      }
+    });
+  }, [costumes, photoBlobs, loadEntityPhoto]);
 
   useEffect(() => {
     setLoading(true);
-    let subscription;
+    const subscriptions = [];
 
-    const setupSubscription = async () => {
+    const setupSubscriptions = async () => {
       try {
-
-        await getDatabase();
-
         if (currentProjectId) {
-          // Subscribe to reactive query for characters in current project
-          const characters$ = await getCharactersByProject$(currentProjectId);
+          const characters$ = await getCharacters$(currentProjectId);
+          subscriptions.push(
+            characters$.subscribe(charactersData => {
+              setCharacters(charactersData);
+              setError(null);
+              setLoading(false);
+            }),
+          );
 
-          subscription = characters$.subscribe(charactersData => {
-            setCharacters(charactersData);
-            setError(null);
-            setLoading(false);
-          });
-
-          // Load costumes for current project
-          const costumesData = await getCostumesByProject(currentProjectId);
-          setCostumes(costumesData);
+          const costumes$ = await getCostumes$(currentProjectId);
+          subscriptions.push(
+            costumes$.subscribe(costumesData => {
+              setCostumes(costumesData);
+            }),
+          );
         } else {
-          // No project selected
           setCharacters([]);
           setCostumes([]);
           setLoading(false);
         }
-
       } catch (err) {
         console.error('Error loading characters:', err);
         setError(err.message);
@@ -47,15 +62,12 @@ function CharacterOverviewPage() {
       }
     };
 
-    setupSubscription();
+    setupSubscriptions();
 
-    // Cleanup subscription on unmount
     return () => {
-      if (subscription) {
-        subscription.unsubscribe();
-      }
+      subscriptions.forEach(sub => sub.unsubscribe());
     };
-  }, [currentProjectId])
+  }, [currentProjectId]);
 
   const handleAddCharacter = async () => {
     if (!currentProjectId) {
@@ -65,20 +77,20 @@ function CharacterOverviewPage() {
 
     try {
       const now = Date.now();
-      await addCharacter({
+      await characterCrud.add({
         name: 'New Character',
         description: '',
         actor: '',
         notes: '',
         projects: currentProjectId,
         createdAt: now,
-        updatedAt: now
-      })
+        updatedAt: now,
+      });
       // No need to manually refresh - reactive query will auto-update!
     } catch (error) {
-      alert('Error creating character: ' + error.message)
+      alert('Error creating character: ' + error.message);
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -88,7 +100,7 @@ function CharacterOverviewPage() {
           <span className="ml-2 text-lg">Loading characters...</span>
         </div>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -98,7 +110,7 @@ function CharacterOverviewPage() {
           Error loading data: {error}
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -111,34 +123,45 @@ function CharacterOverviewPage() {
       {characters.length === 0 ? (
         <Card>
           <p className="text-gray-500 text-center py-8">
-            No characters found. Click Add Character to create your first character.
+            No characters found. Click Add Character to create your first
+            character.
           </p>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {characters.map((character) => {
+          {characters.map(character => {
             // Get costumes for this character
-            const characterCostumes = costumes.filter(costume =>
-              costume.character === character.id
-            )
+            const characterCostumes = costumes.filter(
+              costume => costume.character === character.id,
+            );
 
             return (
               <Link key={character.id} to={`/characters/${character.id}`}>
                 <Card className="hover:bg-gray-50 transition-colors">
                   <div className="space-y-4">
-                    <h2 className="text-xl font-bold text-gray-900">{character.name}</h2>
+                    <h2 className="text-xl font-bold text-gray-900">
+                      {character.name}
+                    </h2>
 
                     {character.actor && (
                       <div>
-                        <span className="text-sm font-medium text-gray-600">Actor: </span>
-                        <span className="text-sm text-gray-700">{character.actor}</span>
+                        <span className="text-sm font-medium text-gray-600">
+                          Actor:{' '}
+                        </span>
+                        <span className="text-sm text-gray-700">
+                          {character.actor}
+                        </span>
                       </div>
                     )}
 
                     {character.description && (
                       <div>
-                        <span className="text-sm font-medium text-gray-600">Description: </span>
-                        <p className="text-sm text-gray-700 mt-1">{character.description}</p>
+                        <span className="text-sm font-medium text-gray-600">
+                          Description:{' '}
+                        </span>
+                        <p className="text-sm text-gray-700 mt-1">
+                          {character.description}
+                        </p>
                       </div>
                     )}
 
@@ -149,21 +172,22 @@ function CharacterOverviewPage() {
                           Costumes ({characterCostumes.length}):
                         </span>
                         <div className="grid grid-cols-3 gap-2">
-                          {characterCostumes.slice(0, 6).map((costume) => {
-                            // Get the last uploaded photo for preview
-                            const lastPhoto = costume.photos && costume.photos.length > 0
-                              ? costume.photos[costume.photos.length - 1]
-                              : null;
+                          {characterCostumes.slice(0, 6).map(costume => {
+                            const photoBlob = photoBlobs[costume.id];
 
                             return (
                               <div key={costume.id} className="aspect-square">
                                 <img
-                                  src={lastPhoto ? lastPhoto.data : 'https://placehold.co/100x100'}
+                                  src={
+                                    photoBlob
+                                      ? photoBlob
+                                      : 'https://placehold.co/100x100'
+                                  }
                                   alt={costume.name}
                                   className="w-full h-full object-cover rounded"
                                 />
                               </div>
-                            )
+                            );
                           })}
                         </div>
                         {characterCostumes.length > 6 && (
@@ -176,12 +200,12 @@ function CharacterOverviewPage() {
                   </div>
                 </Card>
               </Link>
-            )
+            );
           })}
         </div>
       )}
     </div>
-  )
+  );
 }
 
-export default CharacterOverviewPage
+export default CharacterOverviewPage;

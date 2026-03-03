@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "appwrite": "^21.5.0",
+    "browser-image-compression": "^2.0.2",
     "dexie": "^4.2.1",
     "flowbite": "^3.1.2",
     "flowbite-react": "^0.10.2",

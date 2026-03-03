@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Card, Button, Spinner, TextInput, Label, Select, Modal } from 'flowbite-react'
-import { getSceneById, getShootingDayById, getShootingDaysByProject, updateScene, deleteScene, getCharactersByProject, getCostumesByProject } from '../services/database'
+import { sceneCrud, shootingDayCrud, getShootingDays, getCharacters, getCostumes } from '../services/db/database'
 import { useProject } from '../contexts/ProjectContext.jsx'
 
 function SceneDetailPage() {
@@ -36,7 +36,7 @@ function SceneDetailPage() {
       try {
         setLoading(true)
 
-        const sceneData = await getSceneById(id)
+        const sceneData = await sceneCrud.getById(id)
 
         if (!sceneData) {
           setError('Scene not found')
@@ -48,9 +48,9 @@ function SceneDetailPage() {
         // Load project-filtered data
         if (currentProjectId) {
           const [shootingDaysData, charactersData, costumesData] = await Promise.all([
-            getShootingDaysByProject(currentProjectId),
-            getCharactersByProject(currentProjectId),
-            getCostumesByProject(currentProjectId)
+            getShootingDays(currentProjectId),
+            getCharacters(currentProjectId),
+            getCostumes(currentProjectId)
           ])
 
           setShootingDays(shootingDaysData)
@@ -73,7 +73,7 @@ function SceneDetailPage() {
 
         // Load shooting day if scene has one assigned
         if (sceneData.shootingDay) {
-          const shootingDayData = await getShootingDayById(sceneData.shootingDay)
+          const shootingDayData = await shootingDayCrud.getById(sceneData.shootingDay)
           setShootingDay(shootingDayData)
         }
 
@@ -100,15 +100,15 @@ function SceneDetailPage() {
         sceneNumber: parseInt(editData.sceneNumber) || 1
       }
 
-      await updateScene(id, updateData)
+      await sceneCrud.update(id, updateData)
 
       // Refresh scene data
-      const updatedScene = await getSceneById(id)
+      const updatedScene = await sceneCrud.getById(id)
       setScene(updatedScene)
 
       // Update shooting day if changed
       if (updatedScene.shootingDay) {
-        const shootingDayData = await getShootingDayById(updatedScene.shootingDay)
+        const shootingDayData = await shootingDayCrud.getById(updatedScene.shootingDay)
         setShootingDay(shootingDayData)
       } else {
         setShootingDay(null)
@@ -160,7 +160,7 @@ function SceneDetailPage() {
       setDeleting(true)
       setError(null)
 
-      await deleteScene(id)
+      await sceneCrud.delete(id)
 
       // Navigate back to overview after successful deletion
       navigate('/scene-overview')

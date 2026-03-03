@@ -3,19 +3,32 @@ import { Card, Button, Spinner } from 'flowbite-react';
 import { Link } from 'react-router-dom';
 import {
   getDatabase,
-  getCostumesByProject,
-  getCostumesByProject$,
-  addCostume,
-  getCharactersByProject,
-} from '../services/database.js';
+  getCostumes,
+  getCostumes$,
+  costumeCrud,
+  getCharacters,
+} from '../services/db/database.js';
 import { useProject } from '../contexts/ProjectContext.jsx';
+import { usePhotoPreviews } from '../hooks/usePhotoPreviews.jsx';
 
 function CostumeOverviewPage() {
   const { currentProjectId } = useProject();
   const [costumes, setCostumes] = useState([]);
   const [characters, setCharacters] = useState([]);
+  const { photoBlobs, loadEntityPhoto } = usePhotoPreviews(
+    currentProjectId,
+    'costumes',
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    costumes.forEach(costume => {
+      if (costume.id && !photoBlobs[costume.id]) {
+        loadEntityPhoto(costume.id);
+      }
+    });
+  }, [costumes, photoBlobs, loadEntityPhoto]);
 
   useEffect(() => {
     let subscription;
@@ -29,13 +42,13 @@ function CostumeOverviewPage() {
         // Only load data if we have a current project
         if (currentProjectId) {
           // Get initial costumes and characters for current project
-          const initialCostumes = await getCostumesByProject(currentProjectId);
-          const allCharacters = await getCharactersByProject(currentProjectId);
+          const initialCostumes = await getCostumes(currentProjectId);
+          const allCharacters = await getCharacters(currentProjectId);
           setCostumes(initialCostumes);
           setCharacters(allCharacters);
 
           // Subscribe to costume changes for reactive updates
-          const costumes$ = await getCostumesByProject$(currentProjectId);
+          const costumes$ = await getCostumes$(currentProjectId);
           subscription = costumes$.subscribe(updatedCostumes => {
             setCostumes(updatedCostumes);
           });
@@ -71,7 +84,7 @@ function CostumeOverviewPage() {
     }
 
     try {
-      await addCostume({
+      await costumeCrud.add({
         name: 'New Costume',
         projects: currentProjectId,
       });
@@ -118,26 +131,28 @@ function CostumeOverviewPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {costumes.map(costume => {
-            // Get the last uploaded photo for preview
-            const lastPhoto = costume.photos && costume.photos.length > 0
-              ? costume.photos[costume.photos.length - 1]
-              : null;
+            const photoUrls = photoBlobs[costume.id] || [];
 
-            // Find the character name by ID
-            const character = characters && characters.length > 0
-              ? characters.find(c => c.id === costume.character)
-              : null;
+            const character =
+              characters && characters.length > 0
+                ? characters.find(c => c.id === costume.character)
+                : null;
             const characterName = character ? character.name : 'Not assigned';
 
             return (
               <Link key={costume.id} to={`/costumes/${costume.id}`}>
                 <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
-                  {lastPhoto && (
-                    <img
-                      src={lastPhoto.data}
-                      alt={costume.name}
-                      className="rounded-t-lg h-48 w-full object-cover"
-                    />
+                  {photoUrls.length > 0 && (
+                    <div className="grid grid-cols-2 gap-1 rounded-t-lg overflow-hidden">
+                      {photoUrls.map((url, idx) => (
+                        <img
+                          key={idx}
+                          src={url}
+                          alt={`${costume.name} photo ${idx + 1}`}
+                          className="h-24 w-full object-cover"
+                        />
+                      ))}
+                    </div>
                   )}
                   <h5 className="text-xl font-bold tracking-tight text-gray-900">
                     {costume.name || 'Untitled Costume'}
@@ -148,11 +163,6 @@ function CostumeOverviewPage() {
                   <p className="font-normal text-gray-700">
                     Scene: {costume.scene || 'Not assigned'}
                   </p>
-                  {costume.photos && costume.photos.length > 0 && (
-                    <p className="font-normal text-gray-500 text-sm">
-                      {costume.photos.length} photo{costume.photos.length !== 1 ? 's' : ''}
-                    </p>
-                  )}
                 </Card>
               </Link>
             );

@@ -1,5 +1,5 @@
 // Shared database utilities
-import { triggerSync } from '../database.js';
+import { triggerSync } from './database.js';
 
 // UUID fallback for non-secure contexts
 export function generateUUID() {
@@ -31,91 +31,4 @@ export async function getWithPopulated(db, collectionName, id, refFields = []) {
     }));
   }
   return doc;
-}
-
-// Generic CRUD factory function
-export function createCRUDOperations(getDb, collectionName, entityName, defaultData = {}, options = {}) {
-  const { useTimestamps = true } = options;
-
-  return {
-    add: async (data = {}) => {
-      const db = await getDb();
-      const document = {
-        id: generateUUID(),
-        ...defaultData,
-        ...data,
-        ...(useTimestamps ? getTimestamps(true) : {}),
-      };
-      const result = await db[collectionName].insert(document);
-
-      // Trigger immediate sync to Appwrite
-      triggerSync(collectionName);
-
-      return result;
-    },
-
-    getAll: async () => {
-      const db = await getDb();
-      return await db[collectionName].find().exec();
-    },
-
-    getById: async (id) => {
-      const db = await getDb();
-      return await db[collectionName].findOne(id).exec();
-    },
-
-    getById$: async (id) => {
-      const db = await getDb();
-      return db[collectionName].findOne(id).$;
-    },
-
-    getAll$: async () => {
-      const db = await getDb();
-      return db[collectionName].find().$;
-    },
-
-    update: async (id, updateData) => {
-      const db = await getDb();
-      const doc = await db[collectionName].findOne(id).exec();
-      if (!doc) {
-        throw new Error(`${entityName} with id ${id} not found`);
-      }
-
-      // Remove null and undefined values to let defaults or required validation handle them
-      const cleanedData = {};
-      Object.keys(updateData).forEach(key => {
-        if (updateData[key] !== null && updateData[key] !== undefined) {
-          cleanedData[key] = updateData[key];
-        }
-      });
-
-      const result = await doc.update({
-        $set: { ...cleanedData, ...(useTimestamps ? getTimestamps(false) : {}) }
-      });
-
-      // Trigger immediate sync to Appwrite
-      triggerSync(collectionName);
-
-      return result;
-    },
-
-    delete: async (id) => {
-      const db = await getDb();
-      const doc = await db[collectionName].findOne(id).exec();
-      if (!doc) {
-        throw new Error(`${entityName} with id ${id} not found`);
-      }
-      const result = await doc.remove();
-
-      // Trigger immediate sync to Appwrite
-      triggerSync(collectionName);
-
-      return result;
-    },
-
-    findByQuery: async (selector) => {
-      const db = await getDb();
-      return await db[collectionName].find({ selector }).exec();
-    }
-  };
 }

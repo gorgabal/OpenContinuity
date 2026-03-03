@@ -1,16 +1,31 @@
 import { useState, useEffect } from 'react';
+import { switchMap } from 'rxjs';
 import { useParams, Link } from 'react-router-dom';
-import { Card, List, Textarea, Spinner, Button, Modal, Label, Select, Checkbox } from 'flowbite-react';
+import {
+  Card,
+  List,
+  Textarea,
+  Spinner,
+  Button,
+  Modal,
+  Label,
+  Select,
+  Checkbox,
+} from 'flowbite-react';
 import {
   initDatabase,
-  getCostumeById,
-  getCostumeById$,
-  updateCostume,
-  getCharacterById,
-  getSceneById,
-  getCharactersByProject,
-  getScenesByProject,
-} from '../services/database.js';
+  costumeCrud,
+  characterCrud,
+  sceneCrud,
+  getCharacters,
+  getScenes,
+  addPhotoWithFile,
+  getPhotoWithFile,
+  getPhotosByEntity$,
+  updatePhoto,
+  deletePhotoWithFile,
+  triggerSync,
+} from '../services/db/database.js';
 import { useProject } from '../contexts/ProjectContext.jsx';
 
 function CostumeDetailPage() {
@@ -25,9 +40,8 @@ function CostumeDetailPage() {
   const [error, setError] = useState(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState('');
-  const [photoUrls, setPhotoUrls] = useState([]);
-  const [isAddingPhoto, setIsAddingPhoto] = useState(false);
-  const [cameraInputRef, setCameraInputRef] = useState(null);
+  const [photos, setPhotos] = useState([]);
+  const [isLoadingPhotos, setIsLoadingPhotos] = useState(false);
 
   // Edit dialog state
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -47,13 +61,13 @@ function CostumeDetailPage() {
         await initDatabase();
 
         // Get initial costume
-        const initialCostume = await getCostumeById(id);
+        const initialCostume = await costumeCrud.getById(id);
         setCostume(initialCostume);
 
         // Get all characters and scenes for dropdowns (filtered by current project)
         if (currentProjectId) {
-          const characters = await getCharactersByProject(currentProjectId);
-          const scenes = await getScenesByProject(currentProjectId);
+          const characters = await getCharacters(currentProjectId);
+          const scenes = await getScenes(currentProjectId);
           setAllCharacters(characters);
           setAllScenes(scenes);
         } else {
@@ -62,16 +76,28 @@ function CostumeDetailPage() {
         }
 
         // Get character if costume has one assigned
-        if (initialCostume && initialCostume.character && initialCostume.character !== null) {
-          const characterData = await getCharacterById(initialCostume.character);
+        if (
+          initialCostume &&
+          initialCostume.character &&
+          initialCostume.character !== null
+        ) {
+          const characterData = await characterCrud.getById(
+            initialCostume.character,
+          );
           setCharacter(characterData);
         } else {
           setCharacter(null);
         }
 
         // Get scenes if costume has any assigned
-        if (initialCostume && initialCostume.scenes && initialCostume.scenes.length > 0) {
-          const sceneDataPromises = initialCostume.scenes.map(sceneId => getSceneById(sceneId));
+        if (
+          initialCostume &&
+          initialCostume.scenes &&
+          initialCostume.scenes.length > 0
+        ) {
+          const sceneDataPromises = initialCostume.scenes.map(sceneId =>
+            sceneCrud.getById(sceneId),
+          );
           const scenesData = await Promise.all(sceneDataPromises);
           setAssignedScenes(scenesData.filter(s => s !== null));
         } else {
@@ -79,7 +105,7 @@ function CostumeDetailPage() {
         }
 
         // Subscribe to costume changes for reactive updates
-        const costume$ = await getCostumeById$(id);
+        const costume$ = await costumeCrud.getById$(id);
         subscription = costume$.subscribe(updatedCostume => {
           setCostume(updatedCostume);
         });
@@ -110,9 +136,58 @@ function CostumeDetailPage() {
     }
   }, [costume?.name]);
 
+  // Load photos for the current costume
+  useEffect(() => {
+    let subscription;
+
+    const loadPhotos = async () => {
+      if (isLoading) return;
+      if (!id) return;
+
+      try {
+        setIsLoadingPhotos(true);
+
+        // Subscribe to photos by costume ID for reactive updates
+        // TODO: this seems to load the photo's in memory. But it is already in memory through rxdb. fix this by loading it directly into RXDB
+        const photos$ = await getPhotosByEntity$('costumes', id);
+        subscription = photos$
+          .pipe(
+            switchMap(async photos => {
+              const photosWithData = await Promise.all(
+                photos.map(async photo => {
+                  const photoWithFile = await getPhotoWithFile(photo.id);
+                  return photoWithFile;
+                }),
+              );
+
+              return photosWithData.filter(
+                p => p !== null && p.imageBlob !== null,
+              );
+            }),
+          )
+          .subscribe(filteredPhotos => {
+            setPhotos(filteredPhotos);
+            setIsLoadingPhotos(false);
+          });
+      } catch (err) {
+        console.error('Failed to load photos:', err);
+        setIsLoadingPhotos(false);
+      }
+    };
+
+    loadPhotos();
+
+    // Cleanup subscription on unmount or id change
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
+  }, [id, isLoading]);
+
   const handleTitleSave = async () => {
     try {
-      await updateCostume(id, { name: titleValue });
+      await costumeCrud.update(id, { name: titleValue });
       setIsEditingTitle(false);
     } catch (err) {
       console.error('Failed to update title:', err);
@@ -121,20 +196,59 @@ function CostumeDetailPage() {
   };
 
   const handleTakePhoto = () => {
-    setError('Photo functionality is temporarily unavailable. It will be re-implemented soon.');
+    // Create a file input
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'environment'; // Use camera if available
+
+    input.onchange = async e => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      try {
+        setIsLoadingPhotos(true);
+        const newPhoto = await addPhotoWithFile(file, currentProjectId);
+        console.log('[Photo Upload] Created photo:', newPhoto.id);
+
+        await updatePhoto(newPhoto.id, { costumes: id });
+        console.log('[Photo Upload] Updated photo with costume ID');
+
+        triggerSync('photos');
+        console.log('[Photo Upload] Triggered manual sync');
+      } catch (err) {
+        console.error('Failed to add photo:', err);
+        setError('Failed to add photo: ' + err.message);
+      } finally {
+        setIsLoadingPhotos(false);
+      }
+    };
+
+    input.click();
   };
 
+  const handleDeletePhoto = async photoId => {
+    if (!window.confirm('Are you sure you want to delete this photo?')) return;
 
+    try {
+      setIsLoadingPhotos(true);
+      // Delete the photo file and metadata
+      await deletePhotoWithFile(photoId);
 
-
-
-  // Photo functionality temporarily disabled - attachments incompatible with Appwrite sync
-  // Will be re-implemented with alternative solution
+      // Trigger sync for photos
+      triggerSync('photos');
+    } catch (err) {
+      console.error('Failed to delete photo:', err);
+      setError('Failed to delete photo: ' + err.message);
+    } finally {
+      setIsLoadingPhotos(false);
+    }
+  };
 
   const handleNotesChange = async event => {
     const newNotes = event.target.value;
     try {
-      await updateCostume(id, { notes: newNotes });
+      await costumeCrud.update(id, { notes: newNotes });
     } catch (err) {
       console.error('Failed to update notes:', err);
       setError(err.message);
@@ -147,7 +261,7 @@ function CostumeDetailPage() {
     setIsEditDialogOpen(true);
   };
 
-  const handleSceneToggle = (sceneId) => {
+  const handleSceneToggle = sceneId => {
     setEditSceneIds(prev => {
       if (prev.includes(sceneId)) {
         return prev.filter(id => id !== sceneId);
@@ -159,14 +273,14 @@ function CostumeDetailPage() {
 
   const handleSaveAssignments = async () => {
     try {
-      await updateCostume(id, {
+      await costumeCrud.update(id, {
         character: editCharacterId || null,
-        scenes: editSceneIds
+        scenes: editSceneIds,
       });
 
       // Update the character display
       if (editCharacterId && editCharacterId !== null) {
-        const characterData = await getCharacterById(editCharacterId);
+        const characterData = await characterCrud.getById(editCharacterId);
         setCharacter(characterData);
       } else {
         setCharacter(null);
@@ -174,7 +288,9 @@ function CostumeDetailPage() {
 
       // Update the scenes display
       if (editSceneIds.length > 0) {
-        const sceneDataPromises = editSceneIds.map(sceneId => getSceneById(sceneId));
+        const sceneDataPromises = editSceneIds.map(sceneId =>
+          sceneCrud.getById(sceneId),
+        );
         const scenesData = await Promise.all(sceneDataPromises);
         setAssignedScenes(scenesData.filter(s => s !== null));
       } else {
@@ -224,9 +340,9 @@ function CostumeDetailPage() {
           <input
             type="text"
             value={titleValue}
-            onChange={(e) => setTitleValue(e.target.value)}
+            onChange={e => setTitleValue(e.target.value)}
             onBlur={handleTitleSave}
-            onKeyDown={(e) => {
+            onKeyDown={e => {
               if (e.key === 'Enter') handleTitleSave();
               if (e.key === 'Escape') {
                 setTitleValue(costume.name || '');
@@ -254,18 +370,49 @@ function CostumeDetailPage() {
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold">Photos</h2>
               <Button
-                color="gray"
+                color="blue"
                 onClick={handleTakePhoto}
-                disabled={true}
+                disabled={isLoadingPhotos}
               >
-                Coming Soon
+                {isLoadingPhotos ? 'Loading...' : 'Add Photo'}
               </Button>
             </div>
 
-            <div className="text-center py-8 text-gray-500">
-              <p className="mb-2">Photo functionality is temporarily unavailable.</p>
-              <p className="text-sm">This feature is being re-implemented to work with cloud synchronization.</p>
-            </div>
+            {isLoadingPhotos ? (
+              <div className="text-center py-8">
+                <Spinner size="lg" />
+              </div>
+            ) : photos.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p className="mb-2">No photos yet.</p>
+                <p className="text-sm">Click Add Photo to get started.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {photos.map(photo => (
+                  <div key={photo.id} className="relative group">
+                    <img
+                      src={photo.imageBlob}
+                      alt={photo.localFilename}
+                      className="w-full h-48 object-cover rounded-lg"
+                    />
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all rounded-lg flex items-center justify-center">
+                      <Button
+                        color="failure"
+                        size="sm"
+                        onClick={() => handleDeletePhoto(photo.id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-1 truncate">
+                      {photo.localFilename}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
         </div>
 
@@ -359,10 +506,10 @@ function CostumeDetailPage() {
               <Select
                 id="character-select"
                 value={editCharacterId || ''}
-                onChange={(e) => setEditCharacterId(e.target.value || null)}
+                onChange={e => setEditCharacterId(e.target.value || null)}
               >
                 <option value="">Not assigned</option>
-                {allCharacters.map((char) => (
+                {allCharacters.map(char => (
                   <option key={char.id} value={char.id}>
                     {char.name}
                   </option>
@@ -377,7 +524,7 @@ function CostumeDetailPage() {
                 {allScenes.length === 0 ? (
                   <p className="text-gray-500 text-sm">No scenes available</p>
                 ) : (
-                  allScenes.map((scn) => (
+                  allScenes.map(scn => (
                     <div key={scn.id} className="flex items-center">
                       <Checkbox
                         id={`scene-${scn.id}`}

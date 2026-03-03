@@ -1,7 +1,6 @@
 // Scene collection operations
-import { createCRUDOperations } from '../utils.js';
+import { createCRUDOperations } from '../database.js';
 import { map } from 'rxjs/operators';
-import { replicateAppwrite } from 'rxdb/plugins/replication-appwrite';
 
 export const sceneSchema = {
   version: 0,
@@ -62,7 +61,7 @@ export function initSceneOperations(getDatabaseFn) {
   getDb = getDatabaseFn;
 }
 
-const crud = createCRUDOperations(() => getDb(), 'scenes', 'Scene', {
+export const sceneCrud = createCRUDOperations(() => getDb(), 'scenes', 'Scene', {
   sceneNumber: 1,
   shootingDay: null,
   location: '',
@@ -71,22 +70,29 @@ const crud = createCRUDOperations(() => getDb(), 'scenes', 'Scene', {
   projects: null
 }, { useTimestamps: true });
 
-// Export CRUD operations directly
-export const addScene = crud.add;
-export const getSceneById = crud.getById;
-export const getSceneById$ = crud.getById$;
-export const updateScene = crud.update;
-export const deleteScene = crud.delete;
-
 // Get all scenes sorted by scene number
-export async function getScenes() {
-  const scenes = await crud.getAll();
+// If projectId is provided, filter by project
+export async function getScenes(projectId = null) {
+  const db = await getDb();
+  let scenes;
+  if (projectId) {
+    scenes = await db.scenes.find({ selector: { projects: projectId } }).exec();
+  } else {
+    scenes = await sceneCrud.getAll();
+  }
   return scenes.sort((a, b) => a.sceneNumber - b.sceneNumber);
 }
 
 // Get all scenes as observable (reactive)
-export async function getScenes$() {
-  const observable = await crud.getAll$();
+// If projectId is provided, filter by project
+export async function getScenes$(projectId = null) {
+  const db = await getDb();
+  let observable;
+  if (projectId) {
+    observable = db.scenes.find({ selector: { projects: projectId } }).$;
+  } else {
+    observable = await sceneCrud.getAll$();
+  }
   // Transform the observable to sort by scene number
   return observable.pipe(
     map(scenes => scenes.sort((a, b) => a.sceneNumber - b.sceneNumber))
@@ -95,106 +101,6 @@ export async function getScenes$() {
 
 // Get scenes by shooting day
 export async function getScenesByShootingDay(shootingDayId) {
-  const scenes = await crud.findByQuery({ shootingDay: shootingDayId });
+  const scenes = await sceneCrud.findByQuery({ shootingDay: shootingDayId });
   return scenes.sort((a, b) => a.sceneNumber - b.sceneNumber);
-}
-
-// Get scenes by project ID
-export async function getScenesByProject(projectId) {
-  const db = await getDb();
-  const scenes = await db.scenes.find({ selector: { projects: projectId } }).exec();
-  return scenes.sort((a, b) => a.sceneNumber - b.sceneNumber);
-}
-
-// Get scenes by project as observable
-export async function getScenesByProject$(projectId) {
-  const db = await getDb();
-  const observable = db.scenes.find({ selector: { projects: projectId } }).$;
-  return observable.pipe(
-    map(scenes => scenes.sort((a, b) => a.sceneNumber - b.sceneNumber))
-  );
-}
-
-// Replication configuration
-export function createSceneReplication(collection, client, databaseId) {
-  const replicationState = replicateAppwrite({
-    replicationIdentifier: 'Scene-replication',
-    client,
-    databaseId,
-    collectionId: 'scenes',
-    deletedField: 'deleted',
-    collection,
-    waitForLeadership: true, // Only leader tab syncs (prevents duplicate requests)
-    live: false, // Disable realtime subscriptions, use polling instead
-    pull: {
-      batchSize: 10,
-      modifier: (doc) => {
-        // Add timestamps if missing (coming from Appwrite)
-        const now = Date.now();
-
-        // Handle Appwrite relationships - extract IDs if nested objects, otherwise keep as-is
-        const shootingDay = typeof doc.shootingDay === 'object' && doc.shootingDay !== null
-          ? doc.shootingDay.$id || null
-          : doc.shootingDay;
-
-        const characters = Array.isArray(doc.characters) && doc.characters.length > 0 && typeof doc.characters[0] === 'object'
-          ? doc.characters.map(c => c.$id || c)
-          : (doc.characters || []);
-
-        const costumes = Array.isArray(doc.costumes) && doc.costumes.length > 0 && typeof doc.costumes[0] === 'object'
-          ? doc.costumes.map(c => c.$id || c)
-          : (doc.costumes || []);
-
-        const projects = typeof doc.projects === 'object' && doc.projects !== null
-          ? doc.projects.$id || null
-          : doc.projects;
-
-        return {
-          ...doc,
-          shootingDay,
-          characters,
-          costumes,
-          projects,
-          createdAt: (doc.createdAt !== null && doc.createdAt !== undefined) ? doc.createdAt : now,
-          updatedAt: (doc.updatedAt !== null && doc.updatedAt !== undefined) ? doc.updatedAt : now,
-        };
-      }
-    },
-    push: {
-      batchSize: 10,
-      modifier: (doc) => {
-        console.log('[Scenes Push Modifier] Input doc:', doc);
-
-        // Add timestamps if missing or null (going to Appwrite)
-        const now = Date.now();
-
-        // Explicitly only send fields that Appwrite expects
-        // This filters out RxDB internal fields like _deleted, _rev, _meta
-        const cleanDoc = {
-          id: doc.id,
-          sceneNumber: doc.sceneNumber,
-          shootingDay: doc.shootingDay || null,
-          location: doc.location || '',
-          characters: doc.characters || [],
-          costumes: doc.costumes || [],
-          projects: doc.projects || null,
-          createdAt: (doc.createdAt !== null && doc.createdAt !== undefined) ? doc.createdAt : now,
-          updatedAt: (doc.updatedAt !== null && doc.updatedAt !== undefined) ? doc.updatedAt : now,
-        };
-
-        console.log('[Scenes Push Modifier] Output cleanDoc:', cleanDoc);
-        return cleanDoc;
-      }
-    },
-  });
-
-  // Monitor replication errors
-  replicationState.error$.subscribe(error => {
-    console.error('[Scenes Sync] Replication error:', error);
-    if (error.parameters) {
-      console.error('[Scenes Sync] Error parameters:', JSON.stringify(error.parameters, null, 2));
-    }
-  });
-
-  return replicationState;
 }

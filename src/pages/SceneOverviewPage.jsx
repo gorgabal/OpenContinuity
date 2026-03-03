@@ -2,14 +2,14 @@ import { useState, useEffect } from 'react'
 import { Card, Button } from 'flowbite-react'
 import { Link } from 'react-router-dom'
 import {
-  addScene,
-  addShootingDay,
-  getScenesByProject$,
-  getShootingDaysByProject$,
-  getCharactersByProject$,
-  getCostumesByProject$,
+  sceneCrud,
+  shootingDayCrud,
+  getScenes$,
+  getShootingDays$,
+  getCharacters$,
+  getCostumes$,
   getDatabase,
-} from '../services/database'
+} from '../services/db/database'
 import { useProject } from '../contexts/ProjectContext.jsx'
 
 function SceneOverviewPage() {
@@ -32,26 +32,26 @@ function SceneOverviewPage() {
 
         if (currentProjectId) {
           // Subscribe to reactive queries that automatically update when data changes
-          const scenesObservable = await getScenesByProject$(currentProjectId)
+          const scenesObservable = await getScenes$(currentProjectId)
           const scenesSub = scenesObservable.subscribe(scenesData => {
             setScenes(scenesData)
             setLoading(false)
           })
           subscriptions.push(scenesSub)
 
-          const shootingDaysObservable = await getShootingDaysByProject$(currentProjectId)
+          const shootingDaysObservable = await getShootingDays$(currentProjectId)
           const shootingDaysSub = shootingDaysObservable.subscribe(shootingDaysData => {
             setShootingDays(shootingDaysData)
           })
           subscriptions.push(shootingDaysSub)
 
-          const charactersObservable = await getCharactersByProject$(currentProjectId)
+          const charactersObservable = await getCharacters$(currentProjectId)
           const charactersSub = charactersObservable.subscribe(charactersData => {
             setCharacters(charactersData)
           })
           subscriptions.push(charactersSub)
 
-          const costumesObservable = await getCostumesByProject$(currentProjectId)
+          const costumesObservable = await getCostumes$(currentProjectId)
           const costumesSub = costumesObservable.subscribe(costumesData => {
             setCostumes(costumesData)
           })
@@ -91,7 +91,7 @@ function SceneOverviewPage() {
       tomorrow.setDate(tomorrow.getDate() + 1)
       const dateString = tomorrow.toISOString().split('T')[0]
 
-      await addShootingDay({
+      await shootingDayCrud.add({
         date: dateString,
         location: '',
         projects: currentProjectId,
@@ -114,7 +114,7 @@ function SceneOverviewPage() {
         ? Math.max(...scenes.map(scene => scene.sceneNumber))
         : 0
 
-      await addScene({
+      await sceneCrud.add({
         sceneNumber: maxSceneNumber + 1,
         shootingDay: null,
         location: '',

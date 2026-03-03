@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { getProjects$, getProjectById, getDatabase, startDatabaseSync, addProject, getProjects } from '../services/database.js';
+import { getProjects$, getProjectById, getDatabase, startDatabaseSync, addProject, getProjects } from '../services/db/database.js';
 import { useAuth } from './AuthContext.jsx';
 
 const ProjectContext = createContext();

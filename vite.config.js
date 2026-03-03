@@ -11,6 +11,7 @@ export default defineConfig({
       'localhost',
       '127.0.0.1',
       '.ngrok-free.dev',
-    ]
+    ],
+    hmr: false, //hot module reloading inteferes with rxdb
   }
 });

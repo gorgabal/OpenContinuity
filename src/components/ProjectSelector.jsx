@@ -1,7 +1,7 @@
 import { Dropdown, Button } from 'flowbite-react';
 import { useProject } from '../contexts/ProjectContext.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
-import { addProject, updateProject, deleteProject } from '../services/database.js';
+import { addProject, updateProject, deleteProject } from '../services/db/database.js';
 
 function ProjectSelector() {
   const { currentProject, projects, switchProject, isLoading } = useProject();
