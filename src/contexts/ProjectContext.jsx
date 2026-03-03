@@ -1,6 +1,13 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { getProjects$, getProjectById, getDatabase, startDatabaseSync, addProject, getProjects } from '../services/db/database.js';
+import {
+  getProjects$,
+  getProjectById,
+  getDatabase,
+  startDatabaseSync,
+  addProject,
+  getProjects,
+} from '../services/db/database.js';
 import { useAuth } from './AuthContext.jsx';
 
 const ProjectContext = createContext();
@@ -10,7 +17,7 @@ const CURRENT_PROJECT_KEY = 'current_project_id';
 export function ProjectProvider({ children }) {
   const { userId } = useAuth();
   const [currentProjectId, setCurrentProjectId] = useState(
-    localStorage.getItem(CURRENT_PROJECT_KEY)
+    localStorage.getItem(CURRENT_PROJECT_KEY),
   );
   const [currentProject, setCurrentProject] = useState(null);
   const [projects, setProjects] = useState([]);
@@ -30,22 +37,6 @@ export function ProjectProvider({ children }) {
         // Start database sync and wait for initial sync to complete
         await startDatabaseSync();
 
-        // Check if we need to create a default project BEFORE subscribing
-        const initialProjects = await getProjects();
-        if (initialProjects.length === 0 && userId) {
-          try {
-            console.log('No projects found, creating default project...');
-            await addProject({
-              name: 'Default Project',
-              description: '',
-              ownerId: userId,
-            });
-            console.log('Default project created successfully');
-          } catch (err) {
-            console.error('Failed to create default project:', err);
-          }
-        }
-
         // Subscribe to reactive projects query
         const projects$ = await getProjects$();
         subscription = projects$.subscribe(allProjects => {
@@ -57,7 +48,9 @@ export function ProjectProvider({ children }) {
 
           if (storedProjectId) {
             // Verify stored project still exists
-            const storedProject = allProjects.find(p => p.id === storedProjectId);
+            const storedProject = allProjects.find(
+              p => p.id === storedProjectId,
+            );
             if (storedProject) {
               setCurrentProjectId(storedProjectId);
               setCurrentProject(storedProject);
@@ -83,7 +76,6 @@ export function ProjectProvider({ children }) {
             localStorage.setItem(CURRENT_PROJECT_KEY, firstProject.id);
           }
         });
-
       } catch (err) {
         console.error('Failed to setup projects subscription:', err);
         setIsLoading(false);
@@ -100,7 +92,7 @@ export function ProjectProvider({ children }) {
     };
   }, []); // Only run once on mount
 
-  const switchProject = async (projectId) => {
+  const switchProject = async projectId => {
     try {
       const project = await getProjectById(projectId);
       if (project) {
