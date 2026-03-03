@@ -381,7 +381,7 @@ function CharacterDetailPage() {
               return (
                 <Card key={costume.id} className="relative">
                   <Link to={`/costumes/${costume.id}`}>
-                    {photoBlob ? (
+                    {photoBlob ? ( //TODO: currently assumes that photo's are always part of costumes. Verify this with costumer, see if other places also need to be able to add photo's.
                       <img
                         src={photoBlob}
                         alt={costume.name}

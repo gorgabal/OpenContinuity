@@ -198,7 +198,7 @@ export function startPhotoSync() {
   };
 
   // Run initial sync (with a small delay to let metadata sync complete first)
-  // FIXME: DO NOT RELY ON DELAYS, LET COMPLETION OF METADATA SYNC DICTADE WHEN TO DOWNLOAD PHOTOS
+  // TODO FIXME: DO NOT RELY ON DELAYS, LET COMPLETION OF METADATA SYNC DICTADE WHEN TO DOWNLOAD PHOTOS
   setTimeout(() => {
     runSync();
   }, 2000); // 2 second delay

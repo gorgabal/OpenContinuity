@@ -11,7 +11,7 @@ export const photoFileSchema = {
       type: 'string',
       maxLength: 100,
     },
-    imageBlob: {
+    imageBlob: { //TODO FIXME: we should handle this in rxdb attachments instead of blobs. This needs to be fixed.
       type: 'string',
     },
     createdAt: {

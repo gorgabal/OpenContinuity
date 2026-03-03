@@ -148,6 +148,7 @@ function CostumeDetailPage() {
         setIsLoadingPhotos(true);
 
         // Subscribe to photos by costume ID for reactive updates
+        // TODO: this seems to load the photo's in memory. But it is already in memory through rxdb. fix this by loading it directly into RXDB
         const photos$ = await getPhotosByEntity$('costumes', id);
         subscription = photos$
           .pipe(
