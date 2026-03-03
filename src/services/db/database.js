@@ -39,6 +39,14 @@ let replicationStates = null;
 
 // Function to clear and reset database (called on logout)
 export async function clearDatabase() {
+  // Cancel all active replication states before destroying the database
+  if (replicationStates) {
+    await Promise.all(
+      Object.values(replicationStates).map(state => state.cancel()),
+    );
+    replicationStates = null;
+  }
+
   if (database) {
     await database.remove();
     database = null;
@@ -47,7 +55,6 @@ export async function clearDatabase() {
   // Also reset sync state
   syncState.started = false;
   syncState.promise = null;
-  replicationStates = null;
 }
 
 export async function initDatabase() {
@@ -295,7 +302,7 @@ export async function DatabaseSyncAppwrite() {
     characters: states.characters,
     costumes: states.costumes,
     scenes: states.scenes,
-    shootingdays: states.shootingday,
+    shootingday: states.shootingday,
     photos: states.photos,
   };
 
@@ -306,8 +313,8 @@ export async function DatabaseSyncAppwrite() {
     }
   }
 
-  // Set up manual polling every 30 seconds
-  const syncInterval = setInterval(syncAllCollections, 30000);
+  // Set up polling as a safety net for missed Realtime events (60 seconds)
+  const syncInterval = setInterval(syncAllCollections, 60000);
 
   // Sync when app regains visibility (user returns to tab)
   const handleVisibilityChange = () => {
@@ -342,6 +349,9 @@ export async function DatabaseSyncAppwrite() {
     clearInterval(syncInterval);
     document.removeEventListener('visibilitychange', handleVisibilityChange);
     window.removeEventListener('online', handleOnline);
+    if (replicationStates) {
+      Object.values(replicationStates).forEach(state => state.cancel());
+    }
     if (photoSyncCleanup) {
       photoSyncCleanup();
     }

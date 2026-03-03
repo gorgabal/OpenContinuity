@@ -77,7 +77,7 @@ function getSchemaFields(schema) {
  * @returns {function} - Pull modifier function
  */
 export function createDefaultPullModifier(refFields, customModifier = null) {
-  return (doc) => {
+  return doc => {
     const now = Date.now();
     const result = { ...doc };
 
@@ -95,13 +95,17 @@ export function createDefaultPullModifier(refFields, customModifier = null) {
     if (doc.createdAt !== null && doc.createdAt !== undefined) {
       result.createdAt = doc.createdAt;
     } else {
-      console.error(`[Sync] Missing createdAt for doc ${doc.id}, using current time. This may indicate an Appwrite issue.`);
+      console.error(
+        `[Sync] Missing createdAt for doc ${doc.id}, using current time. This may indicate an Appwrite issue.`,
+      );
       result.createdAt = now;
     }
     if (doc.updatedAt !== null && doc.updatedAt !== undefined) {
       result.updatedAt = doc.updatedAt;
     } else {
-      console.error(`[Sync] Missing updatedAt for doc ${doc.id}, using current time. This may indicate an Appwrite issue.`);
+      console.error(
+        `[Sync] Missing updatedAt for doc ${doc.id}, using current time. This may indicate an Appwrite issue.`,
+      );
       result.updatedAt = now;
     }
 
@@ -125,7 +129,7 @@ export function createDefaultPullModifier(refFields, customModifier = null) {
 export function createDefaultPushModifier(schema, customModifier = null) {
   const schemaFields = getSchemaFields(schema);
 
-  return (doc) => {
+  return doc => {
     const now = Date.now();
     const cleanDoc = {};
 
@@ -181,7 +185,8 @@ export function createAppwriteReplication(
   const refFields = getRefFieldsFromSchema(schema);
 
   const {
-    entityName = collectionName.charAt(0).toUpperCase() + collectionName.slice(1),
+    entityName = collectionName.charAt(0).toUpperCase() +
+      collectionName.slice(1),
     collectionId = collectionName,
     retryTime,
     pullModifier: customPullModifier,
@@ -197,7 +202,7 @@ export function createAppwriteReplication(
     deletedField: 'deleted',
     collection,
     waitForLeadership: true,
-    live: false,
+    live: true,
     pull: {
       batchSize: 10,
       modifier: createDefaultPullModifier(refFields, customPullModifier),
@@ -217,7 +222,7 @@ export function createAppwriteReplication(
   const replicationState = replicateAppwrite(replicationConfig);
 
   // Monitor replication errors
-  replicationState.error$.subscribe((error) => {
+  replicationState.error$.subscribe(error => {
     console.error(`[${entityName} Sync] Replication error:`, error);
     if (error.parameters) {
       console.error(
