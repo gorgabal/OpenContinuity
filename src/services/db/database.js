@@ -456,6 +456,18 @@ export function createCRUDOperations(
       return result;
     },
 
+    incrementalPatch: async (id, patchData) => {
+      const db = await getDb();
+      const doc = await db[collectionName].findOne(id).exec();
+      if (!doc) {
+        throw new Error(`${entityName} with id ${id} not found`);
+      }
+
+      const result = await doc.incrementalPatch(patchData);
+
+      return result;
+    },
+
     delete: async id => {
       const db = await getDb();
       const doc = await db[collectionName].findOne(id).exec();

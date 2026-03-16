@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { switchMap } from 'rxjs';
 import { useParams, Link } from 'react-router-dom';
 import {
@@ -248,7 +248,7 @@ function CostumeDetailPage() {
   const handleNotesChange = async event => {
     const newNotes = event.target.value;
     try {
-      await costumeCrud.update(id, { notes: newNotes });
+      await costumeCrud.incrementalPatch(id, { notes: newNotes });
     } catch (err) {
       console.error('Failed to update notes:', err);
       setError(err.message);
