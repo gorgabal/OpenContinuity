@@ -376,7 +376,7 @@ function CharacterDetailPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {costumes.map(costume => {
-              const photoBlob = photoBlobs[costume.id];
+              const photoBlob = photoBlobs[costume.id]?.[0];
 
               return (
                 <Card key={costume.id} className="relative">
@@ -431,7 +431,7 @@ function CharacterDetailPage() {
             ) : (
               <div className="grid gap-3 max-h-96 overflow-y-auto">
                 {availableCostumes.map(costume => {
-                  const photoBlob = photoBlobs[costume.id];
+                  const photoBlob = photoBlobs[costume.id]?.[0];
 
                   return (
                     <Card
