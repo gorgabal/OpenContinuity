@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { switchMap } from 'rxjs';
 import { useParams, Link } from 'react-router-dom';
 import {
@@ -42,6 +42,8 @@ function CostumeDetailPage() {
   const [titleValue, setTitleValue] = useState('');
   const [photos, setPhotos] = useState([]);
   const [isLoadingPhotos, setIsLoadingPhotos] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   // Edit dialog state
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -304,6 +306,14 @@ function CostumeDetailPage() {
     }
   };
 
+  const handlePhotoClick = photo => {
+    setSelectedPhoto(photo);
+  };
+
+  const handleClosePhotoViewer = () => {
+    setSelectedPhoto(null);
+  };
+
   if (isLoading) {
     return (
       <div className="p-4 flex justify-center items-center min-h-64">
@@ -369,13 +379,18 @@ function CostumeDetailPage() {
           <Card>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold">Photos</h2>
-              <Button
-                color="blue"
-                onClick={handleTakePhoto}
-                disabled={isLoadingPhotos}
-              >
-                {isLoadingPhotos ? 'Loading...' : 'Add Photo'}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  color="gray"
+                  onClick={() => setIsEditMode(!isEditMode)}
+                  disabled={isLoadingPhotos}
+                >
+                  {isEditMode ? 'Done' : 'Edit'}
+                </Button>
+                <Button onClick={handleTakePhoto} disabled={isLoadingPhotos}>
+                  {isLoadingPhotos ? 'Loading...' : 'Add Photo'}
+                </Button>
+              </div>
             </div>
 
             {isLoadingPhotos ? (
@@ -388,24 +403,26 @@ function CostumeDetailPage() {
                 <p className="text-sm">Click Add Photo to get started.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="flex flex-wrap gap-4">
                 {photos.map(photo => (
                   <div key={photo.id} className="relative group">
                     <img
                       src={photo.imageBlob}
                       alt={photo.localFilename}
-                      className="w-full h-48 object-cover rounded-lg"
+                      className="w-48 h-48 object-cover rounded-lg cursor-pointer"
+                      onClick={() => handlePhotoClick(photo)}
                     />
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all rounded-lg flex items-center justify-center">
-                      <Button
-                        color="failure"
-                        size="sm"
-                        onClick={() => handleDeletePhoto(photo.id)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        Delete
-                      </Button>
-                    </div>
+                    {isEditMode && (
+                      <div className="absolute inset-0 bg-black bg-opacity-50 rounded-lg flex items-center justify-center">
+                        <Button
+                          color="failure"
+                          size="sm"
+                          onClick={() => handleDeletePhoto(photo.id)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    )}
                     <p className="text-xs text-gray-600 mt-1 truncate">
                       {photo.localFilename}
                     </p>
@@ -549,6 +566,29 @@ function CostumeDetailPage() {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Full-Screen Photo Viewer */}
+      {selectedPhoto && (
+        <Modal show={true} onClose={handleClosePhotoViewer} size="fullscreen">
+          <Modal.Body
+            className="flex items-center justify-center bg-black min-h-screen cursor-pointer"
+            onClick={handleClosePhotoViewer}
+          >
+            <button
+              onClick={handleClosePhotoViewer}
+              className="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 z-10"
+              title="Close"
+            >
+              ×
+            </button>
+            <img
+              src={selectedPhoto.imageBlob}
+              alt={selectedPhoto.localFilename}
+              className="h-screen w-full object-contain"
+            />
+          </Modal.Body>
+        </Modal>
+      )}
     </div>
   );
 }
