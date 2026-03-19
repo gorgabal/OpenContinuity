@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { switchMap } from 'rxjs';
 import { useParams, Link } from 'react-router-dom';
 import {
   Card,
@@ -20,13 +19,13 @@ import {
   getCharacters,
   getScenes,
   addPhotoWithFile,
-  getPhotoWithFile,
-  getPhotosByEntity$,
   updatePhoto,
   deletePhotoWithFile,
   triggerSync,
 } from '../services/db/database.js';
 import { useProject } from '../contexts/ProjectContext.jsx';
+import { usePhotoData } from '../hooks/usePhotoData.js';
+import PhotoSection from '../components/PhotoSection.jsx';
 
 function CostumeDetailPage() {
   const { id } = useParams();
@@ -40,10 +39,8 @@ function CostumeDetailPage() {
   const [error, setError] = useState(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState('');
-  const [photos, setPhotos] = useState([]);
-  const [isLoadingPhotos, setIsLoadingPhotos] = useState(false);
+  const { photos, isLoading: isLoadingPhotos } = usePhotoData('costumes', id);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
-  const [isEditMode, setIsEditMode] = useState(false);
 
   // Edit dialog state
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -138,55 +135,6 @@ function CostumeDetailPage() {
     }
   }, [costume?.name]);
 
-  // Load photos for the current costume
-  useEffect(() => {
-    let subscription;
-
-    const loadPhotos = async () => {
-      if (isLoading) return;
-      if (!id) return;
-
-      try {
-        setIsLoadingPhotos(true);
-
-        // Subscribe to photos by costume ID for reactive updates
-        // TODO: this seems to load the photo's in memory. But it is already in memory through rxdb. fix this by loading it directly into RXDB
-        const photos$ = await getPhotosByEntity$('costumes', id);
-        subscription = photos$
-          .pipe(
-            switchMap(async photos => {
-              const photosWithData = await Promise.all(
-                photos.map(async photo => {
-                  const photoWithFile = await getPhotoWithFile(photo.id);
-                  return photoWithFile;
-                }),
-              );
-
-              return photosWithData.filter(
-                p => p !== null && p.imageBlob !== null,
-              );
-            }),
-          )
-          .subscribe(filteredPhotos => {
-            setPhotos(filteredPhotos);
-            setIsLoadingPhotos(false);
-          });
-      } catch (err) {
-        console.error('Failed to load photos:', err);
-        setIsLoadingPhotos(false);
-      }
-    };
-
-    loadPhotos();
-
-    // Cleanup subscription on unmount or id change
-    return () => {
-      if (subscription) {
-        subscription.unsubscribe();
-      }
-    };
-  }, [id, isLoading]);
-
   const handleTitleSave = async () => {
     try {
       await costumeCrud.update(id, { name: titleValue });
@@ -197,53 +145,29 @@ function CostumeDetailPage() {
     }
   };
 
-  const handleTakePhoto = () => {
-    // Create a file input
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.capture = 'environment'; // Use camera if available
+  const handleAddCostumePhoto = async file => {
+    try {
+      const newPhoto = await addPhotoWithFile(file, currentProjectId);
+      console.log('[Photo Upload] Created photo:', newPhoto.id);
 
-    input.onchange = async e => {
-      const file = e.target.files?.[0];
-      if (!file) return;
+      await updatePhoto(newPhoto.id, { costumes: id });
+      console.log('[Photo Upload] Updated photo with costume ID');
 
-      try {
-        setIsLoadingPhotos(true);
-        const newPhoto = await addPhotoWithFile(file, currentProjectId);
-        console.log('[Photo Upload] Created photo:', newPhoto.id);
-
-        await updatePhoto(newPhoto.id, { costumes: id });
-        console.log('[Photo Upload] Updated photo with costume ID');
-
-        triggerSync('photos');
-        console.log('[Photo Upload] Triggered manual sync');
-      } catch (err) {
-        console.error('Failed to add photo:', err);
-        setError('Failed to add photo: ' + err.message);
-      } finally {
-        setIsLoadingPhotos(false);
-      }
-    };
-
-    input.click();
+      triggerSync('photos');
+      console.log('[Photo Upload] Triggered manual sync');
+    } catch (err) {
+      console.error('Failed to add photo:', err);
+      setError('Failed to add photo: ' + err.message);
+    }
   };
 
-  const handleDeletePhoto = async photoId => {
-    if (!window.confirm('Are you sure you want to delete this photo?')) return;
-
+  const handleDeleteCostumePhoto = async photoId => {
     try {
-      setIsLoadingPhotos(true);
-      // Delete the photo file and metadata
       await deletePhotoWithFile(photoId);
-
-      // Trigger sync for photos
       triggerSync('photos');
     } catch (err) {
       console.error('Failed to delete photo:', err);
       setError('Failed to delete photo: ' + err.message);
-    } finally {
-      setIsLoadingPhotos(false);
     }
   };
 
@@ -376,61 +300,14 @@ function CostumeDetailPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Left column - Photos */}
         <div className="md:col-span-2 space-y-4">
-          <Card>
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Photos</h2>
-              <div className="flex gap-2">
-                <Button
-                  color="gray"
-                  onClick={() => setIsEditMode(!isEditMode)}
-                  disabled={isLoadingPhotos}
-                >
-                  {isEditMode ? 'Done' : 'Edit'}
-                </Button>
-                <Button onClick={handleTakePhoto} disabled={isLoadingPhotos}>
-                  {isLoadingPhotos ? 'Loading...' : 'Add Photo'}
-                </Button>
-              </div>
-            </div>
-
-            {isLoadingPhotos ? (
-              <div className="text-center py-8">
-                <Spinner size="lg" />
-              </div>
-            ) : photos.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <p className="mb-2">No photos yet.</p>
-                <p className="text-sm">Click Add Photo to get started.</p>
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-4">
-                {photos.map(photo => (
-                  <div key={photo.id} className="relative group">
-                    <img
-                      src={photo.imageBlob}
-                      alt={photo.localFilename}
-                      className="w-48 h-48 object-cover rounded-lg cursor-pointer"
-                      onClick={() => handlePhotoClick(photo)}
-                    />
-                    {isEditMode && (
-                      <div className="absolute inset-0 bg-black bg-opacity-50 rounded-lg flex items-center justify-center">
-                        <Button
-                          color="failure"
-                          size="sm"
-                          onClick={() => handleDeletePhoto(photo.id)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    )}
-                    <p className="text-xs text-gray-600 mt-1 truncate">
-                      {photo.localFilename}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
+          <PhotoSection
+            title="Photos"
+            photos={photos}
+            isLoading={isLoadingPhotos}
+            onPhotoClick={handlePhotoClick}
+            onPhotoAdd={handleAddCostumePhoto}
+            onPhotoDelete={handleDeleteCostumePhoto}
+          />
         </div>
 
         {/* Right column - Notes and Links */}

@@ -14,9 +14,15 @@ import {
   getCostumes$,
   assignCostumeToCharacter,
   unassignCostumeFromCharacter,
+  addPhotoWithFile,
+  updatePhoto,
+  deletePhotoWithFile,
+  triggerSync,
 } from '../services/db/database';
 import { useProject } from '../contexts/ProjectContext.jsx';
 import { usePhotoPreviews } from '../hooks/usePhotoPreviews.jsx';
+import { usePhotoData } from '../hooks/usePhotoData.js';
+import PhotoSection from '../components/PhotoSection.jsx';
 
 function CharacterDetailPage() {
   const { id } = useParams();
@@ -35,6 +41,9 @@ function CharacterDetailPage() {
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showAddCostumeModal, setShowAddCostumeModal] = useState(false);
+  const { photos: characterPhotos, isLoading: isLoadingCharacterPhotos } =
+    usePhotoData('characters', id);
+  const [selectedCharacterPhoto, setSelectedCharacterPhoto] = useState(null);
 
   useEffect(() => {
     [...costumes, ...availableCostumes].forEach(costume => {
@@ -194,6 +203,35 @@ function CharacterDetailPage() {
       console.error('Error unassigning costume:', err);
       setError(err.message);
     }
+  };
+
+  const handleAddCharacterPhoto = async file => {
+    try {
+      const newPhoto = await addPhotoWithFile(file, currentProjectId);
+      await updatePhoto(newPhoto.id, { characters: id });
+      triggerSync('photos');
+    } catch (err) {
+      console.error('Failed to add character photo:', err);
+      setError('Failed to add photo: ' + err.message);
+    }
+  };
+
+  const handleDeleteCharacterPhoto = async photoId => {
+    try {
+      await deletePhotoWithFile(photoId);
+      triggerSync('photos');
+    } catch (err) {
+      console.error('Failed to delete photo:', err);
+      setError('Failed to delete photo: ' + err.message);
+    }
+  };
+
+  const handleCharacterPhotoClick = photo => {
+    setSelectedCharacterPhoto(photo);
+  };
+
+  const handleCloseCharacterPhotoViewer = () => {
+    setSelectedCharacterPhoto(null);
   };
 
   if (loading) {
@@ -360,6 +398,18 @@ function CharacterDetailPage() {
         </div>
       </Card>
 
+      {/* Character Photos Section */}
+      <div className="mt-6">
+        <PhotoSection
+          title="Character Photos"
+          photos={characterPhotos}
+          isLoading={isLoadingCharacterPhotos}
+          onPhotoClick={handleCharacterPhotoClick}
+          onPhotoAdd={handleAddCharacterPhoto}
+          onPhotoDelete={handleDeleteCharacterPhoto}
+        />
+      </div>
+
       {/* Costumes Section */}
       <Card className="mt-6">
         <div className="flex justify-between items-center mb-4">
@@ -480,6 +530,33 @@ function CharacterDetailPage() {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Character Photo Viewer Modal */}
+      {selectedCharacterPhoto && (
+        <Modal
+          show={true}
+          onClose={handleCloseCharacterPhotoViewer}
+          size="fullscreen"
+        >
+          <Modal.Body
+            className="flex items-center justify-center bg-black min-h-screen cursor-pointer"
+            onClick={handleCloseCharacterPhotoViewer}
+          >
+            <button
+              onClick={handleCloseCharacterPhotoViewer}
+              className="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 z-10"
+              title="Close"
+            >
+              ×
+            </button>
+            <img
+              src={selectedCharacterPhoto.imageBlob}
+              alt={selectedCharacterPhoto.localFilename}
+              className="h-screen w-full object-contain"
+            />
+          </Modal.Body>
+        </Modal>
+      )}
     </div>
   );
 }
