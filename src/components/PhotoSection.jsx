@@ -1,18 +1,22 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
-import { Card, Spinner, Button } from 'flowbite-react';
+import { Card, Spinner, Button, Modal } from 'flowbite-react';
+import { useProject } from '../contexts/ProjectContext.jsx';
+import { addPhotoWithFile, updatePhoto, deletePhotoWithFile, triggerSync } from '../services/db/database.js';
 
 export default function PhotoSection({
   title,
   photos,
   isLoading,
-  onPhotoClick,
-  onPhotoAdd,
-  onPhotoDelete,
+  entityType,
+  entityId,
+  onError,
 }) {
+  const { currentProjectId } = useProject();
   const [isEditMode, setIsEditMode] = useState(false);
   const [isAddingPhoto, setIsAddingPhoto] = useState(false);
   const [isDeletingPhoto, setIsDeletingPhoto] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
 
   const handleAddPhoto = () => {
     const input = document.createElement('input');
@@ -26,9 +30,14 @@ export default function PhotoSection({
 
       try {
         setIsAddingPhoto(true);
-        await onPhotoAdd(file);
+        const newPhoto = await addPhotoWithFile(file, currentProjectId);
+        await updatePhoto(newPhoto.id, { [entityType]: entityId });
+        triggerSync('photos');
       } catch (err) {
         console.error('Failed to add photo:', err);
+        if (onError) {
+          onError('Failed to add photo: ' + err.message);
+        }
       } finally {
         setIsAddingPhoto(false);
       }
@@ -42,12 +51,24 @@ export default function PhotoSection({
 
     try {
       setIsDeletingPhoto(true);
-      await onPhotoDelete(photoId);
+      await deletePhotoWithFile(photoId);
+      triggerSync('photos');
     } catch (err) {
       console.error('Failed to delete photo:', err);
+      if (onError) {
+        onError('Failed to delete photo: ' + err.message);
+      }
     } finally {
       setIsDeletingPhoto(false);
     }
+  };
+
+  const handlePhotoClick = photo => {
+    setSelectedPhoto(photo);
+  };
+
+  const handleClosePhotoViewer = () => {
+    setSelectedPhoto(null);
   };
 
   return (
@@ -83,16 +104,16 @@ export default function PhotoSection({
           <p className="text-sm">Click Add Photo to get started.</p>
         </div>
       ) : (
-        <div className="flex flex-wrap gap-4">
-          {photos.map(photo => (
-            <div key={photo.id} className="relative group">
-              <img
-                src={photo.imageBlob}
-                alt={photo.localFilename}
-                className="w-48 h-48 object-cover rounded-lg cursor-pointer"
-                onClick={() => onPhotoClick(photo)}
-              />
-              {isEditMode && (
+         <div className="flex flex-wrap gap-4">
+           {photos.map(photo => (
+             <div key={photo.id} className="relative group">
+               <img
+                 src={photo.imageBlob}
+                 alt={photo.localFilename}
+                 className="w-48 h-48 object-cover rounded-lg cursor-pointer"
+                 onClick={() => handlePhotoClick(photo)}
+               />
+               {isEditMode && (
                 <div className="absolute inset-0 bg-black bg-opacity-50 rounded-lg flex items-center justify-center">
                   <Button
                     color="failure"
@@ -109,7 +130,33 @@ export default function PhotoSection({
               </p>
             </div>
           ))}
-        </div>
+         </div>
+       )}
+
+      {selectedPhoto && (
+        <Modal
+          show={true}
+          onClose={handleClosePhotoViewer}
+          size="fullscreen"
+        >
+          <Modal.Body
+            className="flex items-center justify-center bg-black min-h-screen cursor-pointer"
+            onClick={handleClosePhotoViewer}
+          >
+            <button
+              onClick={handleClosePhotoViewer}
+              className="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 z-10"
+              title="Close"
+            >
+              ×
+            </button>
+            <img
+              src={selectedPhoto.imageBlob}
+              alt={selectedPhoto.localFilename}
+              className="h-screen w-full object-contain"
+            />
+          </Modal.Body>
+        </Modal>
       )}
     </Card>
   );
@@ -125,7 +172,7 @@ PhotoSection.propTypes = {
     }),
   ).isRequired,
   isLoading: PropTypes.bool.isRequired,
-  onPhotoClick: PropTypes.func.isRequired,
-  onPhotoAdd: PropTypes.func.isRequired,
-  onPhotoDelete: PropTypes.func.isRequired,
+  entityType: PropTypes.string.isRequired,
+  entityId: PropTypes.string.isRequired,
+  onError: PropTypes.func,
 };

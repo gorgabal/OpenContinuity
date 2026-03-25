@@ -18,10 +18,6 @@ import {
   sceneCrud,
   getCharacters,
   getScenes,
-  addPhotoWithFile,
-  updatePhoto,
-  deletePhotoWithFile,
-  triggerSync,
 } from '../services/db/database.js';
 import { useProject } from '../contexts/ProjectContext.jsx';
 import { usePhotoData } from '../hooks/usePhotoData.js';
@@ -40,7 +36,6 @@ function CostumeDetailPage() {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState('');
   const { photos, isLoading: isLoadingPhotos } = usePhotoData('costumes', id);
-  const [selectedPhoto, setSelectedPhoto] = useState(null);
 
   // Edit dialog state
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -145,32 +140,6 @@ function CostumeDetailPage() {
     }
   };
 
-  const handleAddCostumePhoto = async file => {
-    try {
-      const newPhoto = await addPhotoWithFile(file, currentProjectId);
-      console.log('[Photo Upload] Created photo:', newPhoto.id);
-
-      await updatePhoto(newPhoto.id, { costumes: id });
-      console.log('[Photo Upload] Updated photo with costume ID');
-
-      triggerSync('photos');
-      console.log('[Photo Upload] Triggered manual sync');
-    } catch (err) {
-      console.error('Failed to add photo:', err);
-      setError('Failed to add photo: ' + err.message);
-    }
-  };
-
-  const handleDeleteCostumePhoto = async photoId => {
-    try {
-      await deletePhotoWithFile(photoId);
-      triggerSync('photos');
-    } catch (err) {
-      console.error('Failed to delete photo:', err);
-      setError('Failed to delete photo: ' + err.message);
-    }
-  };
-
   const handleNotesChange = async event => {
     const newNotes = event.target.value;
     try {
@@ -228,14 +197,6 @@ function CostumeDetailPage() {
       console.error('Failed to update assignments:', err);
       setError(err.message);
     }
-  };
-
-  const handlePhotoClick = photo => {
-    setSelectedPhoto(photo);
-  };
-
-  const handleClosePhotoViewer = () => {
-    setSelectedPhoto(null);
   };
 
   if (isLoading) {
@@ -304,9 +265,9 @@ function CostumeDetailPage() {
             title="Photos"
             photos={photos}
             isLoading={isLoadingPhotos}
-            onPhotoClick={handlePhotoClick}
-            onPhotoAdd={handleAddCostumePhoto}
-            onPhotoDelete={handleDeleteCostumePhoto}
+            entityType="costumes"
+            entityId={id}
+            onError={setError}
           />
         </div>
 
@@ -443,29 +404,6 @@ function CostumeDetailPage() {
           </Button>
         </Modal.Footer>
       </Modal>
-
-      {/* Full-Screen Photo Viewer */}
-      {selectedPhoto && (
-        <Modal show={true} onClose={handleClosePhotoViewer} size="fullscreen">
-          <Modal.Body
-            className="flex items-center justify-center bg-black min-h-screen cursor-pointer"
-            onClick={handleClosePhotoViewer}
-          >
-            <button
-              onClick={handleClosePhotoViewer}
-              className="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 z-10"
-              title="Close"
-            >
-              ×
-            </button>
-            <img
-              src={selectedPhoto.imageBlob}
-              alt={selectedPhoto.localFilename}
-              className="h-screen w-full object-contain"
-            />
-          </Modal.Body>
-        </Modal>
-      )}
     </div>
   );
 }

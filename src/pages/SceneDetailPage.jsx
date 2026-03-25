@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Card, Button, Spinner, TextInput, Label, Select, Modal } from 'flowbite-react'
 import { sceneCrud, shootingDayCrud, getShootingDays, getCharacters, getCostumes } from '../services/db/database'
+import { usePhotoData } from '../hooks/usePhotoData.js'
+import PhotoSection from '../components/PhotoSection.jsx'
 import { useProject } from '../contexts/ProjectContext.jsx'
 
 function SceneDetailPage() {
@@ -22,6 +24,7 @@ function SceneDetailPage() {
   const [showCostumeModal, setShowCostumeModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const { photos, isLoading: isLoadingPhotos } = usePhotoData('scenes', id)
 
   const [editData, setEditData] = useState({
     sceneNumber: '',
@@ -215,7 +218,7 @@ function SceneDetailPage() {
   }
 
   return (
-    <div className="p-4 max-w-4xl mx-auto">
+    <div className="p-4 max-w-4xl mx-auto mb-4">
       <div className="mb-6 flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Scene {scene.sceneNumber}</h1>
@@ -402,6 +405,15 @@ function SceneDetailPage() {
           </div>
         </div>
       </Card>
+
+      <PhotoSection
+        title="Scene Photos"
+        photos={photos}
+        isLoading={isLoadingPhotos}
+        entityType="scenes"
+        entityId={id}
+        onError={setError}
+      />
 
       {/* Character Selection Modal */}
       <Modal show={showCharacterModal} onClose={() => setShowCharacterModal(false)}>
