@@ -2,7 +2,10 @@ import PropTypes from 'prop-types';
 import { useState } from 'react';
 import { Card, Spinner, Button, Modal } from 'flowbite-react';
 import { useProject } from '../contexts/ProjectContext.jsx';
-import { addPhotoWithFile, updatePhoto, deletePhotoWithFile, triggerSync } from '../services/db/database.js';
+import {
+  addPhotoWithFile,
+  deletePhotoWithFile,
+} from '../services/db/database.js';
 
 export default function PhotoSection({
   title,
@@ -30,9 +33,7 @@ export default function PhotoSection({
 
       try {
         setIsAddingPhoto(true);
-        const newPhoto = await addPhotoWithFile(file, currentProjectId);
-        await updatePhoto(newPhoto.id, { [entityType]: entityId });
-        triggerSync('photos');
+        await addPhotoWithFile(file, currentProjectId, entityType, entityId);
       } catch (err) {
         console.error('Failed to add photo:', err);
         if (onError) {
@@ -52,7 +53,6 @@ export default function PhotoSection({
     try {
       setIsDeletingPhoto(true);
       await deletePhotoWithFile(photoId);
-      triggerSync('photos');
     } catch (err) {
       console.error('Failed to delete photo:', err);
       if (onError) {
@@ -104,16 +104,22 @@ export default function PhotoSection({
           <p className="text-sm">Click Add Photo to get started.</p>
         </div>
       ) : (
-         <div className="flex flex-wrap gap-4">
-           {photos.map(photo => (
-             <div key={photo.id} className="relative group">
-               <img
-                 src={photo.imageBlob}
-                 alt={photo.localFilename}
-                 className="w-48 h-48 object-cover rounded-lg cursor-pointer"
-                 onClick={() => handlePhotoClick(photo)}
-               />
-               {isEditMode && (
+        <div className="flex flex-wrap gap-4">
+          {photos.map(photo => (
+            <div key={photo.id} className="relative group">
+              {photo.imageBlob ? (
+                <img
+                  src={photo.imageBlob}
+                  alt={photo.localFilename}
+                  className="w-48 h-48 object-cover rounded-lg cursor-pointer"
+                  onClick={() => handlePhotoClick(photo)}
+                />
+              ) : (
+                <div className="w-48 h-48 bg-gray-200 rounded-lg flex items-center justify-center">
+                  <span className="text-sm text-gray-400">Processing…</span>
+                </div>
+              )}
+              {isEditMode && (
                 <div className="absolute inset-0 bg-black bg-opacity-50 rounded-lg flex items-center justify-center">
                   <Button
                     color="failure"
@@ -130,15 +136,11 @@ export default function PhotoSection({
               </p>
             </div>
           ))}
-         </div>
-       )}
+        </div>
+      )}
 
       {selectedPhoto && (
-        <Modal
-          show={true}
-          onClose={handleClosePhotoViewer}
-          size="fullscreen"
-        >
+        <Modal show={true} onClose={handleClosePhotoViewer} size="fullscreen">
           <Modal.Body
             className="flex items-center justify-center bg-black min-h-screen cursor-pointer"
             onClick={handleClosePhotoViewer}

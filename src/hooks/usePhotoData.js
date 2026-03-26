@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { concatMap } from 'rxjs';
+import { switchMap } from 'rxjs';
 import {
   getPhotosByEntity$,
   getPhotoWithFile,
@@ -20,7 +20,7 @@ export function usePhotoData(entityType, entityId) {
         const photos$ = await getPhotosByEntity$(entityType, entityId);
         subscription = photos$
           .pipe(
-            concatMap(async photos => {
+            switchMap(async photos => {
               const photosWithData = await Promise.all(
                 photos.map(async photo => {
                   const photoWithFile = await getPhotoWithFile(photo.id);
@@ -28,14 +28,12 @@ export function usePhotoData(entityType, entityId) {
                 }),
               );
 
-              return photosWithData.filter(
-                p => p !== null && p.imageBlob !== null,
-              );
+              return photosWithData.filter(p => p !== null && p.imageBlob);
             }),
           )
-          .subscribe(filteredPhotos => {
-            setPhotos(filteredPhotos);
-            setIsLoading(false);
+          .subscribe({
+            next: filteredPhotos => { setPhotos(filteredPhotos); setIsLoading(false); },
+            error: err => { console.error('Photo subscription error:', err); setIsLoading(false); },
           });
       } catch (err) {
         console.error('Failed to load photos:', err);

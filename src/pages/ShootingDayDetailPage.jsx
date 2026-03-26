@@ -7,7 +7,6 @@ import {
   TextInput,
   Textarea,
   Label,
-  Select,
   Modal,
 } from 'flowbite-react';
 import {
@@ -20,6 +19,7 @@ import {
 } from '../services/db/database';
 import { useProject } from '../contexts/ProjectContext.jsx';
 import { usePhotoPreviews } from '../hooks/usePhotoPreviews.jsx';
+import ScenePreview from '../components/ScenePreview.jsx';
 
 function ShootingDayDetailPage() {
   const { id } = useParams();
@@ -30,13 +30,13 @@ function ShootingDayDetailPage() {
   const [assignedScenes, setAssignedScenes] = useState([]);
   const [characters, setCharacters] = useState([]);
   const [costumes, setCostumes] = useState([]);
-  const photoPreviewMap = usePhotoPreviews(currentProjectId);
+  const { photoBlobs: costumePhotoBlobs, loadEntityPhoto: loadCostumePhoto } =
+    usePhotoPreviews(currentProjectId, 'costumes');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showAddSceneModal, setShowAddSceneModal] = useState(false);
-
   const [editData, setEditData] = useState({
     date: '',
     location: '',
@@ -109,6 +109,14 @@ function ShootingDayDetailPage() {
       loadData();
     }
   }, [id, currentProjectId]);
+
+  useEffect(() => {
+    costumes.forEach(costume => {
+      if (costume.id && !costumePhotoBlobs[costume.id]) {
+        loadCostumePhoto(costume.id);
+      }
+    });
+  }, [costumes, costumePhotoBlobs, loadCostumePhoto]);
 
   const handleSave = async () => {
     try {
@@ -398,73 +406,14 @@ function ShootingDayDetailPage() {
             </Card>
           ) : (
             assignedScenes.map(scene => (
-              <Card
+              <ScenePreview
                 key={scene.id}
-                className="hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex flex-row">
-                  {/* Scene number box */}
-                  <Link to={`/scene/${scene.id}`} className="flex">
-                    <div className="bg-gray-300 p-6 flex items-center justify-center min-w-[100px]">
-                      <span className="text-4xl font-bold">
-                        {scene.sceneNumber}
-                      </span>
-                    </div>
-                  </Link>
-
-                  {/* Scene details */}
-                  <Link to={`/scene/${scene.id}`} className="p-4 flex-grow">
-                    <ul className="space-y-1">
-                      {scene.location && (
-                        <li className="text-gray-700">
-                          Locatie: {scene.location}
-                        </li>
-                      )}
-                      {scene.characters && scene.characters.length > 0 && (
-                        <li className="text-gray-700">
-                          Personages:{' '}
-                          {scene.characters
-                            .map(charId => {
-                              const character = characters.find(
-                                c => c.id === charId,
-                              );
-                              return character ? character.name : null;
-                            })
-                            .filter(name => name)
-                            .join(', ')}
-                        </li>
-                      )}
-                      {scene.costumes && scene.costumes.length > 0 && (
-                        <li className="text-gray-700">
-                          Kostuums:{' '}
-                          {scene.costumes
-                            .map(costId => {
-                              const costume = costumes.find(
-                                c => c.id === costId,
-                              );
-                              return costume ? costume.name : null;
-                            })
-                            .filter(name => name)
-                            .join(', ')}
-                        </li>
-                      )}
-                    </ul>
-                  </Link>
-
-                  {/* Remove button */}
-                  {isEditing && (
-                    <div className="p-4 flex items-center">
-                      <Button
-                        size="sm"
-                        color="failure"
-                        onClick={() => handleUnassignScene(scene.id)}
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </Card>
+                scene={scene}
+                characters={characters}
+                costumes={costumes}
+                isEditable={isEditing}
+                onRemove={handleUnassignScene}
+              />
             ))
           )}
         </div>
@@ -503,15 +452,14 @@ function ShootingDayDetailPage() {
                   ) : (
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {characterCostumes.map(costume => {
-                        const photoPreview = photoPreviewMap[costume.id];
-                        const photoBlob = photoPreview?.blob;
+                        const photoUrls = costumePhotoBlobs[costume.id] || [];
 
                         return (
                           <Link key={costume.id} to={`/costumes/${costume.id}`}>
                             <div className="hover:opacity-75 transition-opacity">
-                              {photoBlob ? (
+                              {photoUrls.length > 0 ? (
                                 <img
-                                  src={photoBlob}
+                                  src={photoUrls[0]}
                                   alt={costume.name}
                                   className="w-full h-auto rounded-lg shadow-md"
                                 />
@@ -553,43 +501,14 @@ function ShootingDayDetailPage() {
             ) : (
               <div className="grid gap-3 max-h-96 overflow-y-auto">
                 {availableScenes.map(scene => (
-                  <Card
+                  <ScenePreview
                     key={scene.id}
-                    className="hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <h4 className="font-semibold">
-                          Scene {scene.sceneNumber}
-                        </h4>
-                        {scene.location && (
-                          <p className="text-sm text-gray-600">
-                            Location: {scene.location}
-                          </p>
-                        )}
-                        {scene.characters && scene.characters.length > 0 && (
-                          <p className="text-sm text-gray-600">
-                            Characters:{' '}
-                            {scene.characters
-                              .map(charId => {
-                                const character = characters.find(
-                                  c => c.id === charId,
-                                );
-                                return character ? character.name : null;
-                              })
-                              .filter(name => name)
-                              .join(', ')}
-                          </p>
-                        )}
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={() => handleAssignScene(scene.id)}
-                      >
-                        Assign
-                      </Button>
-                    </div>
-                  </Card>
+                    scene={scene}
+                    characters={characters}
+                    compact={true}
+                    onAction={handleAssignScene}
+                    actionLabel="Assign"
+                  />
                 ))}
               </div>
             )}

@@ -165,47 +165,75 @@ async function downloadPhotoFromAppwrite(photoId, bucketUrl) {
   }
 }
 
-// Add photo with file - stores metadata in photos collection and file in photofiles collection
-export async function addPhotoWithFile(file, projectId) {
+// Add photo with file - stores metadata in photos collection and file in photofiles collection.
+// Pass entityType and entityId to atomically link the photo on insert, preventing a race
+// condition where the replication layer could pull back the unlinked record before the
+// separate updatePhoto() call completes.
+//
+// This function returns immediately after inserting the metadata. The actual image
+// compression, base64 conversion, and photofiles insert happen in the background.
+export async function addPhotoWithFile(
+  file,
+  projectId,
+  entityType = null,
+  entityId = null,
+) {
   const db = await getDb();
-
-  // Compress the image first
-  const compressedFile = await compressPhoto(file);
-
-  // Convert compressed file to base64
-  const imageBlob = await fileToBase64(compressedFile);
 
   // Generate UUID upfront so we can use it for both ID and filename
   const photoId = generateUUID();
   const filename = generatePhotoFilename(file.name, photoId);
 
-  // Create photo metadata
+  // Create photo metadata, including the entity FK if provided so the
+  // record is fully linked from the very first insert (no unlinked window).
   const photoMetadata = {
     id: photoId,
     localFilename: filename,
     bucketUrl: null,
     syncStatus: 'pending',
     projects: projectId,
+    ...(entityType && entityId ? { [entityType]: entityId } : {}),
   };
 
-  // Add photo metadata
+  // Phase 1: Insert photo metadata immediately (sync to UI)
   const photo = await addPhoto(photoMetadata);
 
-  // Add photo file with same ID - clean up metadata on failure
-  try {
-    await db.photofiles.insert({
-      id: photo.id,
-      imageBlob,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-  } catch (err) {
-    // Clean up orphaned photo metadata
-    await deletePhoto(photo.id);
-    throw err;
-  }
+  // Phase 2: Compress and store the real image blob in the background (not awaited)
+  compressAndStoreImage(file, photoId, photo.localFilename).catch(err => {
+    console.error('[Photos] Background compression failed:', photoId, err);
+    // Mark the photo as error state so the user knows something went wrong
+    updatePhotoSyncStatus(photoId, 'error').catch(e =>
+      console.error('[Photos] Failed to mark error status:', photoId, e),
+    );
+  });
 
   return photo;
+}
+
+async function compressAndStoreImage(file, photoId, filename) {
+  console.log('[Photos] Starting background compression:', photoId, filename);
+
+  // Compress the image
+  const compressedFile = await compressPhoto(file);
+
+  // Convert compressed file to base64
+  const imageBlob = await fileToBase64(compressedFile);
+
+  const db = await getDb();
+
+  // Insert the photofiles record with the real image blob
+  await db.photofiles.insert({
+    id: photoId,
+    imageBlob,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  });
+
+  // Touch the photos record so the photos$ observable re-emits,
+  // allowing usePhotoData to pick up the newly available blob.
+  await updatePhoto(photoId, { updatedAt: Date.now() });
+
+  console.log('[Photos] Background compression complete:', photoId);
 }
 
 // Get photo with its file data
@@ -298,8 +326,6 @@ export async function getPendingPhotos() {
     .exec();
   return photos;
 }
-
-
 
 // Generic: Get photos by any parent entity
 export async function getPhotosByEntity(entityType, entityId) {

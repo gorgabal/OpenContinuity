@@ -44,14 +44,20 @@ export function usePhotoPreviews(projectId, entityType) {
                 const photoWithFile = await getPhotoWithFile(photo.id);
                 return photoWithFile?.imageBlob ?? null;
               });
-              return await Promise.all(photoPromises);
+              const results = await Promise.all(photoPromises);
+              return results.filter(blob => blob !== null);
             }),
           )
-          .subscribe(photoUrls => {
-            setPhotoBlobs(prev => ({
-              ...prev,
-              [entityId]: photoUrls,
-            }));
+          .subscribe({
+            next: photoUrls => {
+              setPhotoBlobs(prev => ({
+                ...prev,
+                [entityId]: photoUrls,
+              }));
+            },
+            error: err => {
+              console.error(`Photo preview subscription error for ${entityId}:`, err);
+            },
           });
 
         subscriptionsRef.current[entityId] = subscription;
