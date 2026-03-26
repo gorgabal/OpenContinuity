@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
-import { Card, Button } from 'flowbite-react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect } from 'react';
+import { Card, Button } from 'flowbite-react';
+import { Link } from 'react-router-dom';
 import {
   sceneCrud,
   shootingDayCrud,
@@ -9,76 +9,93 @@ import {
   getCharacters$,
   getCostumes$,
   getDatabase,
-} from '../services/db/database'
-import { useProject } from '../contexts/ProjectContext.jsx'
+} from '../services/db/database';
+import { useProject } from '../contexts/ProjectContext.jsx';
+import { usePhotoPreviews } from '../hooks/usePhotoPreviews.jsx';
 
 function SceneOverviewPage() {
-  const { currentProjectId } = useProject()
-  const [scenes, setScenes] = useState([])
-  const [shootingDays, setShootingDays] = useState([])
-  const [characters, setCharacters] = useState([])
-  const [costumes, setCostumes] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const { currentProjectId } = useProject();
+  const [scenes, setScenes] = useState([]);
+  const [shootingDays, setShootingDays] = useState([]);
+  const [characters, setCharacters] = useState([]);
+  const [costumes, setCostumes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const { photoBlobs, loadEntityPhoto } = usePhotoPreviews(
+    currentProjectId,
+    'scenes',
+  );
 
   useEffect(() => {
-    const subscriptions = []
+    const subscriptions = [];
 
     const loadData = async () => {
       try {
-        setLoading(true)
+        setLoading(true);
 
         await getDatabase();
 
         if (currentProjectId) {
           // Subscribe to reactive queries that automatically update when data changes
-          const scenesObservable = await getScenes$(currentProjectId)
+          const scenesObservable = await getScenes$(currentProjectId);
           const scenesSub = scenesObservable.subscribe(scenesData => {
-            setScenes(scenesData)
-            setLoading(false)
-          })
-          subscriptions.push(scenesSub)
+            setScenes(scenesData);
+            setLoading(false);
+          });
+          subscriptions.push(scenesSub);
 
-          const shootingDaysObservable = await getShootingDays$(currentProjectId)
-          const shootingDaysSub = shootingDaysObservable.subscribe(shootingDaysData => {
-            setShootingDays(shootingDaysData)
-          })
-          subscriptions.push(shootingDaysSub)
+          const shootingDaysObservable =
+            await getShootingDays$(currentProjectId);
+          const shootingDaysSub = shootingDaysObservable.subscribe(
+            shootingDaysData => {
+              setShootingDays(shootingDaysData);
+            },
+          );
+          subscriptions.push(shootingDaysSub);
 
-          const charactersObservable = await getCharacters$(currentProjectId)
-          const charactersSub = charactersObservable.subscribe(charactersData => {
-            setCharacters(charactersData)
-          })
-          subscriptions.push(charactersSub)
+          const charactersObservable = await getCharacters$(currentProjectId);
+          const charactersSub = charactersObservable.subscribe(
+            charactersData => {
+              setCharacters(charactersData);
+            },
+          );
+          subscriptions.push(charactersSub);
 
-          const costumesObservable = await getCostumes$(currentProjectId)
+          const costumesObservable = await getCostumes$(currentProjectId);
           const costumesSub = costumesObservable.subscribe(costumesData => {
-            setCostumes(costumesData)
-          })
-          subscriptions.push(costumesSub)
+            setCostumes(costumesData);
+          });
+          subscriptions.push(costumesSub);
         } else {
           // No project selected
-          setScenes([])
-          setShootingDays([])
-          setCharacters([])
-          setCostumes([])
-          setLoading(false)
+          setScenes([]);
+          setShootingDays([]);
+          setCharacters([]);
+          setCostumes([]);
+          setLoading(false);
         }
-
       } catch (err) {
-        console.error('Error loading data:', err)
-        setError(err.message)
-        setLoading(false)
+        console.error('Error loading data:', err);
+        setError(err.message);
+        setLoading(false);
       }
-    }
+    };
 
-    loadData()
+    loadData();
 
     // Cleanup: unsubscribe from all observables when component unmounts
     return () => {
-      subscriptions.forEach(sub => sub.unsubscribe())
-    }
-  }, [currentProjectId])
+      subscriptions.forEach(sub => sub.unsubscribe());
+    };
+  }, [currentProjectId]);
+
+  useEffect(() => {
+    scenes.forEach(scene => {
+      if (scene.id && !photoBlobs[scene.id]) {
+        loadEntityPhoto(scene.id);
+      }
+    });
+  }, [scenes, photoBlobs, loadEntityPhoto]);
 
   const handleAddShootingDay = async () => {
     if (!currentProjectId) {
@@ -87,20 +104,20 @@ function SceneOverviewPage() {
     }
 
     try {
-      const tomorrow = new Date()
-      tomorrow.setDate(tomorrow.getDate() + 1)
-      const dateString = tomorrow.toISOString().split('T')[0]
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const dateString = tomorrow.toISOString().split('T')[0];
 
       await shootingDayCrud.add({
         date: dateString,
         location: '',
         projects: currentProjectId,
-      })
+      });
       // No need to manually refresh - the subscription will handle it
     } catch (error) {
-      alert('Error creating shooting day: ' + error.message)
+      alert('Error creating shooting day: ' + error.message);
     }
-  }
+  };
 
   const handleAddScene = async () => {
     if (!currentProjectId) {
@@ -110,9 +127,10 @@ function SceneOverviewPage() {
 
     try {
       // Find the next scene number
-      const maxSceneNumber = scenes.length > 0
-        ? Math.max(...scenes.map(scene => scene.sceneNumber))
-        : 0
+      const maxSceneNumber =
+        scenes.length > 0
+          ? Math.max(...scenes.map(scene => scene.sceneNumber))
+          : 0;
 
       await sceneCrud.add({
         sceneNumber: maxSceneNumber + 1,
@@ -121,12 +139,12 @@ function SceneOverviewPage() {
         characters: [],
         costumes: [],
         projects: currentProjectId,
-      })
+      });
       // No need to manually refresh - the subscription will handle it
     } catch (error) {
-      alert('Error creating scene: ' + error.message)
+      alert('Error creating scene: ' + error.message);
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -135,7 +153,7 @@ function SceneOverviewPage() {
           <div className="text-lg">Loading...</div>
         </div>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -145,7 +163,7 @@ function SceneOverviewPage() {
           Error loading data: {error}
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -167,8 +185,10 @@ function SceneOverviewPage() {
               </p>
             </Card>
           ) : (
-            scenes.map((scene) => {
-              const shootingDay = shootingDays.find(day => day.id === scene.shootingDay)
+            scenes.map(scene => {
+              const shootingDay = shootingDays.find(
+                day => day.id === scene.shootingDay,
+              );
 
               return (
                 <div key={scene.id}>
@@ -177,43 +197,85 @@ function SceneOverviewPage() {
                       <div className="flex flex-row">
                         {/* Scene number box */}
                         <div className="bg-gray-300 p-6 flex items-center justify-center min-w-[100px]">
-                          <span className="text-4xl font-bold">{scene.sceneNumber}</span>
+                          <span className="text-4xl font-bold">
+                            {scene.sceneNumber}
+                          </span>
                         </div>
 
                         {/* Scene details */}
                         <div className="p-4 flex-grow">
                           <ul className="space-y-1">
                             {scene.location && (
-                              <li className="text-gray-700">Locatie: {scene.location}</li>
-                            )}
-                            {scene.characters && scene.characters.length > 0 && (
                               <li className="text-gray-700">
-                                Personages: {scene.characters.map(charId => {
-                                  const character = characters.find(c => c.id === charId)
-                                  return character ? character.name : null
-                                }).filter(name => name).join(', ')}
+                                Locatie: {scene.location}
                               </li>
                             )}
+                            {scene.characters &&
+                              scene.characters.length > 0 && (
+                                <li className="text-gray-700">
+                                  Personages:{' '}
+                                  {scene.characters
+                                    .map(charId => {
+                                      const character = characters.find(
+                                        c => c.id === charId,
+                                      );
+                                      return character ? character.name : null;
+                                    })
+                                    .filter(name => name)
+                                    .join(', ')}
+                                </li>
+                              )}
                             {scene.costumes && scene.costumes.length > 0 && (
                               <li className="text-gray-700">
-                                Kostuums: {scene.costumes.map(costId => {
-                                  const costume = costumes.find(c => c.id === costId)
-                                  return costume ? costume.name : null
-                                }).filter(name => name).join(', ')}
+                                Kostuums:{' '}
+                                {scene.costumes
+                                  .map(costId => {
+                                    const costume = costumes.find(
+                                      c => c.id === costId,
+                                    );
+                                    return costume ? costume.name : null;
+                                  })
+                                  .filter(name => name)
+                                  .join(', ')}
                               </li>
                             )}
                             {shootingDay && (
                               <li className="text-gray-700 mt-2">
-                                Draaidag: {shootingDay.name || new Date(shootingDay.date).toLocaleDateString('nl-NL')}
+                                Draaidag:{' '}
+                                {shootingDay.name ||
+                                  new Date(shootingDay.date).toLocaleDateString(
+                                    'nl-NL',
+                                  )}
                               </li>
                             )}
                           </ul>
                         </div>
+
+                        {/* Photo strip on right */}
+                        {photoBlobs[scene.id]?.length > 0 && (
+                          <div className="flex gap-1 p-2 min-w-[120px] overflow-hidden">
+                            {photoBlobs[scene.id]
+                              .slice(0, 4)
+                              .map((url, idx) => (
+                                <img
+                                  key={idx}
+                                  src={url}
+                                  alt={`Scene ${scene.sceneNumber} photo ${idx + 1}`}
+                                  className={`
+                                  w-full min-w-[80px] max-h-20 object-contain rounded
+                                  ${idx === 3 ? 'hidden lg:block' : ''}
+                                  ${idx === 2 ? 'hidden md:block' : ''}
+                                  ${idx === 1 ? 'hidden sm:block' : ''}
+                                `}
+                                />
+                              ))}
+                          </div>
+                        )}
                       </div>
                     </Card>
                   </Link>
                 </div>
-              )
+              );
             })
           )}
         </div>
@@ -232,34 +294,44 @@ function SceneOverviewPage() {
               </p>
             </Card>
           ) : (
-            shootingDays.map((day) => {
+            shootingDays.map(day => {
               const dayScenes = scenes
                 .filter(scene => scene.shootingDay === day.id)
-                .sort((a, b) => a.sceneNumber - b.sceneNumber)
+                .sort((a, b) => a.sceneNumber - b.sceneNumber);
 
               return (
                 <div key={day.id}>
                   <Link to={`/shootingday/${day.id}`}>
                     <Card className="hover:bg-gray-50 transition-colors">
                       <div className="flex justify-between items-center mb-2">
-                        <h3 className="font-bold">{day.name || new Date(day.date).toLocaleDateString('nl-NL')}</h3>
-                        <span className="text-sm text-gray-500">{day.status}</span>
+                        <h3 className="font-bold">
+                          {day.name ||
+                            new Date(day.date).toLocaleDateString('nl-NL')}
+                        </h3>
+                        <span className="text-sm text-gray-500">
+                          {day.status}
+                        </span>
                       </div>
-                      <p className="text-sm text-gray-600">{new Date(day.date).toLocaleDateString('nl-NL')}</p>
+                      <p className="text-sm text-gray-600">
+                        {new Date(day.date).toLocaleDateString('nl-NL')}
+                      </p>
                       <p className="text-gray-700">Locatie: {day.location}</p>
                       <p className="text-gray-700">
-                        Scenes: {dayScenes.length > 0 ? dayScenes.map(scene => scene.sceneNumber).join(', ') : 'No scenes'}
+                        Scenes:{' '}
+                        {dayScenes.length > 0
+                          ? dayScenes.map(scene => scene.sceneNumber).join(', ')
+                          : 'No scenes'}
                       </p>
                     </Card>
                   </Link>
                 </div>
-              )
+              );
             })
           )}
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-export default SceneOverviewPage
+export default SceneOverviewPage;
